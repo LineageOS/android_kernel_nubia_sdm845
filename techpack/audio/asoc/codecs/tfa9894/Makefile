@@ -32,3 +32,5 @@ endif
 
 obj-$(CONFIG_SND_SOC_TFA9894) += snd-soc-tfa98xx.o
 
+subdir-ccflags-y := $(call cc-disable-warning, enum-conversion)
+
