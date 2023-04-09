@@ -380,6 +380,9 @@ static void gpio_keys_gpio_report_event(struct gpio_button_data *bdata)
 	unsigned int type = button->type ?: EV_KEY;
 	int state;
 
+#ifdef CONFIG_NUBIA_KEYBOARD_GAMESWITCH
+	static gs_old_state;
+#endif
 	state = gpiod_get_value_cansleep(bdata->gpiod);
 	if (state < 0) {
 		dev_err(input->dev.parent,
@@ -393,12 +396,19 @@ static void gpio_keys_gpio_report_event(struct gpio_button_data *bdata)
 	} else {
 #ifdef CONFIG_NUBIA_KEYBOARD_GAMESWITCH
 		if (bdata->button->code == KEY_GAME_SWITCH) {
+			if (gs_old_state == state)
+				goto gs_old;
 			set_gameswitch(input, state);
+			gs_old_state = state;
 		} else
 #endif
 			input_event(input, type, button->code, !!state);
 	}
 	input_sync(input);
+#ifdef CONFIG_NUBIA_KEYBOARD_GAMESWITCH
+	gs_old:
+	pr_err("GPIO_KEY: Skipping value change\n");
+#endif
 }
 
 static void gpio_keys_gpio_work_func(struct work_struct *work)
