@@ -314,6 +314,9 @@ enum power_supply_property {
 	POWER_SUPPLY_PROP_SERIAL_NUMBER,
 	POWER_SUPPLY_PROP_BATTERY_TYPE,
 	POWER_SUPPLY_PROP_CYCLE_COUNTS,
+	#if defined(CONFIG_NEO_DIRECT_CHARGE_SUPPORT)
+	POWER_SUPPLY_PROP_CHARGING_DISABLED,
+	#endif
 };
 
 enum power_supply_type {
@@ -337,6 +340,9 @@ enum power_supply_type {
 	POWER_SUPPLY_TYPE_TYPEC,	/* Type-C */
 	POWER_SUPPLY_TYPE_UFP,		/* Type-C UFP */
 	POWER_SUPPLY_TYPE_DFP,		/* TYpe-C DFP */
+	#if defined(CONFIG_NEO_DIRECT_CHARGE_SUPPORT)
+	POWER_SUUPLY_TYPE_NEOCHARGER,	/* NEO-Direct Charger */
+	#endif
 };
 
 /* Indicates USB Type-C CC connection status */

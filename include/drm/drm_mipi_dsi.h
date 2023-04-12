@@ -188,6 +188,9 @@ struct mipi_dsi_device {
 	char name[DSI_DEV_NAME_SIZE];
 	unsigned int channel;
 	unsigned int lanes;
+#ifdef CONFIG_NUBIA_SWITCH_LCD
+	u32 last_bl_lvl;
+#endif
 	enum mipi_dsi_pixel_format format;
 	unsigned long mode_flags;
 };
