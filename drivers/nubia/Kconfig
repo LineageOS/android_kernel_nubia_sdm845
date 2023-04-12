@@ -42,3 +42,40 @@ source "drivers/nubia/touch/Kconfig"
 endif
 
 endmenu
+
+# Nubia configuration options
+
+config MACH_NUBIA
+    bool "NUBIA device"
+    depends on ARCH_QCOM
+    help
+      Support for Nubia products
+
+config MACH_NUBIA_SDM845
+    bool "NUBIA SDM845"
+    depends on ARCH_SDM845
+    select MACH_NUBIA
+    help
+      Support for SDM845 Nubia variants
+
+menu "Nubia board selection"
+
+config MACH_NUBIA_NX606J
+    bool "NUBIA_NX606J board"
+    select MACH_NUBIA_SDM845
+    help
+      Support for Nubia Z18 variant
+
+config MACH_NUBIA_NX616J
+    bool "NUBIA_NX616J board"
+    select MACH_NUBIA_SDM845
+    help
+      Support for Nubia X variant
+
+config MACH_NUBIA_NX619J
+    bool "NUBIA_NX619J board"
+    select MACH_NUBIA_SDM845
+    help
+      Support for Nubia Red Magic Mars variant
+
+endmenu
