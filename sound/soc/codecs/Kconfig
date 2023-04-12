@@ -818,6 +818,28 @@ config SND_SOC_TFA9879
 	tristate "NXP Semiconductors TFA9879 amplifier"
 	depends on I2C
 
+config SND_SOC_TFA9894
+	tristate "Support tfa9894"
+	depends on I2C
+	help
+	tfa9894 driver
+
+config SND_SOC_TFA9894_STEREO
+	tristate "Support tfa9894 stereo"
+	depends on I2C
+	help
+	tfa9894 stereo driver
+
+config SND_SOC_TFA9874_OR_HAPTIC
+	bool "HAPTIC using tfa9874"
+	help
+	This option enables support for nxp haptic.
+
+config NUBIA_TYPEC_HEADSET
+	bool "Nubia support typec headset"
+	help
+	This option enables support for typec headset.
+
 config SND_SOC_TLV320AIC23
 	tristate
 
