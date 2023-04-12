@@ -45,7 +45,11 @@ config MSMB_CAMERA_DEBUG
     ---help---
       Enable printk() debug for msm camera 2.0
 
-
+config NUBIA_CAMERA_DUAL_CAMERA_IMX519
+    bool "nubia enable dualcamera imx519"
+    default n
+    ---help---
+        NX616 imx519 eeprom dualcamera cal addr is different from imx499
 
 if MSMB_CAMERA
 source "drivers/media/platform/msm/camera_v2/Kconfig"

@@ -745,4 +745,46 @@ config LEDS_QPNP_VIBRATOR
 comment "LED Triggers"
 source "drivers/leds/trigger/Kconfig"
 
+# Nubia START
+config NUBIA_BREATH_LEDS
+	tristate "LED support for NUBIA BREATH LED"
+	depends on LEDS_CLASS
+	help
+	  This option enables support for the NUBIA RGB LED connected
+	  Say Y to enable support for the NUBIA LED.
+
+config NUBIA_DOUBLE_LEDS
+	tristate "LED support for NUBIA DOUBLE LED"
+	depends on LEDS_CLASS
+	help
+	  This option enables support for the NUBIA DOUBLE LED connected
+	  Say Y to enable support for the NUBIA DOUBLE LED.
+
+config NUBIA_GPIO5_LEDS
+	tristate "LED support for NUBIA  gpio 5 DOUBLE LED"
+	depends on LEDS_CLASS
+	help
+	  This option enables support for the NUBIA gpio 5 LED connected
+	  Say Y to enable support for the NUBIA DOUBLE LED.
+
+config FEATURE_NUBIA_HAPTIC_VIBRATOR
+        tristate "FEATURE_NUBIA_HAPTIC_VIBRATOR"
+        depends on LEDS_CLASS
+        default n
+
+config NUBIA_WLED_OVP_FILTER
+        tristate "wled ovp"
+        depends on LEDS_CLASS
+        default n
+        help
+          reduce output frequency of "WLED OVP..." log
+		  
+config FEATURE_ZTEMT_HAPTIC_VIBRATOR
+        tristate "FEATURE_ZTEMT_HAPTIC_VIBRATOR"
+        depends on LEDS_CLASS
+        default n
+		
+source "drivers/leds/nubia_led/Kconfig"
+#NUBIA END
+
 endif # NEW_LEDS

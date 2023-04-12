@@ -31,6 +31,11 @@
 #include "dsi_clk.h"
 #include "dsi_pwr.h"
 #include "sde_dbg.h"
+#ifdef CONFIG_NUBIA_LCD_DISP_PREFERENCE
+#include "nubia_disp_preference.h"
+extern struct nubia_disp_type nubia_disp_val;
+extern struct dsi_display *nubia_display;
+#endif
 
 #define to_dsi_display(x) container_of(x, struct dsi_display, host)
 #define INT_BASE_10 10
@@ -151,6 +156,14 @@ int dsi_display_set_backlight(void *display, u32 bl_lvl)
 		return -EINVAL;
 
 	panel = dsi_display->panel;
+
+#ifdef CONFIG_NUBIA_LCD_DISP_PREFERENCE
+	if(nubia_disp_val.last_bl_lvl == 0){
+		nubia_dsi_panel_cabc(nubia_display->panel, nubia_disp_val.cabc);
+		pr_err("power on set cabc  nubia_disp_val.last_bl_lvl = %d\n",nubia_disp_val.last_bl_lvl);
+	}
+	nubia_disp_val.last_bl_lvl = bl_lvl;
+#endif
 
 	mutex_lock(&panel->panel_lock);
 	if (!dsi_panel_initialized(panel)) {
@@ -5120,6 +5133,9 @@ int dsi_display_dev_probe(struct platform_device *pdev)
 			primary_display = display;
 		else
 			secondary_display = display;
+#ifdef CONFIG_NUBIA_LCD_DISP_PREFERENCE
+	        nubia_set_dsi_ctrl(display);
+#endif
 		rc = _dsi_display_dev_init(display);
 		if (rc) {
 			pr_err("device init failed, rc=%d\n", rc);
@@ -6618,6 +6634,10 @@ int dsi_display_enable(struct dsi_display *display)
 {
 	int rc = 0;
 	struct dsi_display_mode *mode;
+#ifdef CONFIG_NUBIA_SWITCH_LCD
+	struct drm_event event;
+	bool panel_switch_complete = false;
+#endif
 
 	if (!display || !display->panel) {
 		pr_err("Invalid params\n");
@@ -6684,7 +6704,14 @@ int dsi_display_enable(struct dsi_display *display)
 		if (rc)
 			pr_err("[%s] failed to switch DSI panel mode, rc=%d\n",
 				   display->name, rc);
+#ifdef CONFIG_NUBIA_SWITCH_LCD
+		panel_switch_complete = true;
+		event.type = DRM_EVENT_PANEL_SWITCH_COMPLETE;
+		event.length = sizeof(bool);
 
+		pr_debug("update switch complete event %s\n",__func__);
+		msm_mode_object_event_notify(&display->drm_conn->base,display->drm_conn->dev,&event,(u8 *)&panel_switch_complete);
+#endif
 		goto error;
 	}
 

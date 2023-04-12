@@ -9,6 +9,9 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  */
+#ifdef CONFIG_NUBIA_BREATH_LEDS
+#define pr_fmt(fmt)	"[QPNP_LEDS]%s: " fmt, __func__
+#endif
 
 #include <linux/kernel.h>
 #include <linux/regmap.h>
@@ -27,6 +30,25 @@
 #include <linux/delay.h>
 #include <linux/regulator/consumer.h>
 #include <linux/delay.h>
+#include <linux/ctype.h>
+#include <linux/mutex.h>
+#include <linux/gpio.h>
+#include <linux/of_gpio.h>
+
+#ifdef CONFIG_NUBIA_BREATH_LEDS
+#define LOG_ERROR(fmt, args...)    pr_err("%d "  fmt,__LINE__, ##args)
+#define LOG_INFO(fmt, args...)     pr_info("%d "  fmt,__LINE__, ##args)
+#define leds_info(fmt, args...)    pr_info("%d "  fmt,__LINE__, ##args)
+#define leds_err(fmt, args...)     pr_err("%d "  fmt,__LINE__, ##args)
+#define LOG_DEBUG_IF(en, fmt, args...) \
+do { \
+    if (en) { \
+		pr_info("%d "  fmt,__LINE__, ##args); \
+    }; \
+} while (0)
+
+//#define CONFIG_NUBIA_GPIO5_LEDS
+#endif
 
 #define WLED_MOD_EN_REG(base, n)	(base + 0x60 + n*0x10)
 #define WLED_IDAC_DLY_REG(base, n)	(WLED_MOD_EN_REG(base, n) + 0x01)
@@ -265,6 +287,9 @@ enum qpnp_leds {
 	QPNP_ID_LED_MPP,
 	QPNP_ID_KPDBL,
 	QPNP_ID_LED_GPIO,
+#ifdef CONFIG_NUBIA_BREATH_LEDS
+	QPNP_ID_RGB_GREEN2,
+#endif
 	QPNP_ID_MAX,
 };
 
@@ -308,6 +333,37 @@ enum led_mode {
 	MANUAL_MODE,
 };
 
+#ifdef CONFIG_NUBIA_BREATH_LEDS
+enum led_control_mode {
+	RGB_LED_MODE_CLOSED = 0,
+	RGB_LED_MODE_CONSTANT_ON,
+	RGB_LED_MODE_OFF,
+	RGB_LED_MODE_AUTO_BLINK,
+	RGB_LED_MODE_POWER_ON,
+	RGB_LED_MODE_POWER_OFF,
+	RGB_LED_MODE_ONCE_BLINK,
+};
+
+enum fade_time_data{
+	FADE_TIME_ZERO = 0,
+	FADE_TIME_ONE,
+	FADE_TIME_TWO,
+	FADE_TIME_THREE,
+	FADE_TIME_FOUR,
+};
+
+#define MIDDLE_CHANNEL   0x10
+#define SILDE_CHANNEL    0x08
+
+#define GRADE_PARAM_LEN  20
+#define CONST_MIN_GRADE  1
+#define CONST_MAX_GRADE  255
+#define FADE_PARAM_LEN   20
+#define FADE_PARAM_CONVERT 400
+
+#define  BRIGHTNESS_STEP  4
+
+#endif
 static u8 wled_debug_regs[] = {
 	/* brightness registers */
 	0x40, 0x41, 0x42, 0x43, 0x44, 0x45,
@@ -503,6 +559,17 @@ struct kpdbl_config_data {
 struct rgb_config_data {
 	struct pwm_config_data	*pwm_cfg;
 	u8	enable;
+#ifdef CONFIG_NUBIA_BREATH_LEDS
+	u32 is_auto_breath;
+	int led_channel;
+	int grade_percentage;
+	int grade_scale_offset;
+	int autoblink_fade_time;
+	int autoblink_fullon_time;
+	int autoblink_fulloff_time;
+	int onceblink_max_grade;
+	int autoblink_max_grade;
+#endif
 };
 
 /**
@@ -556,6 +623,25 @@ struct qpnp_led_data {
 	bool				default_on;
 	bool				in_order_command_processing;
 	int				turn_off_delay_ms;
+#ifdef CONFIG_NUBIA_BREATH_LEDS
+	struct	mutex qpnp_mutex;
+	int fade_time;
+	int fullon_time;
+	int fulloff_time;
+	int min_grade;
+	int max_grade ;
+	int ztemt_channel;
+	int ztemt_mode;
+	u8 debug_level;
+#ifdef CONFIG_NUBIA_GPIO5_LEDS
+	int bgpio5_data;
+	int bgpio5_Value;
+#endif
+#ifdef CONFIG_NUBIA_DOUBLE_LEDS
+	int hold_time_ms;
+	int off_time_ms;
+#endif
+#endif
 };
 
 static DEFINE_MUTEX(flash_lock);
@@ -568,6 +654,7 @@ static int
 qpnp_led_masked_write(struct qpnp_led_data *led, u16 addr, u8 mask, u8 val)
 {
 	int rc;
+
 
 	rc = regmap_update_bits(led->regmap, addr, mask, val);
 	if (rc)
@@ -1712,6 +1799,10 @@ static int qpnp_rgb_set(struct qpnp_led_data *led)
 {
 	int rc;
 	int duty_us, duty_ns, period_us;
+#ifdef CONFIG_NUBIA_BREATH_LEDS
+	LOG_DEBUG_IF(led->debug_level, "set mode swith brightness:%d blinking:%d ",
+		led->cdev.brightness,led->rgb_cfg->pwm_cfg->blinking);
+#endif
 
 	if (led->cdev.brightness) {
 		if (!led->rgb_cfg->pwm_cfg->blinking)
@@ -1748,6 +1839,12 @@ static int qpnp_rgb_set(struct qpnp_led_data *led)
 				"pwm config failed\n");
 			return rc;
 		}
+#ifdef CONFIG_NUBIA_BREATH_LEDS
+		LOG_DEBUG_IF(led->debug_level, "set mode swith enable:%d mode:%d ",led->rgb_cfg->pwm_cfg->pwm_enabled,
+                    led->rgb_cfg->pwm_cfg->mode);
+		LOG_DEBUG_IF(led->debug_level, "set mode swith id:%d  :channel:%d\n",led->id,led->ztemt_channel);
+#endif
+
 		rc = qpnp_led_masked_write(led,
 			RGB_LED_EN_CTL(led->base),
 			led->rgb_cfg->enable, led->rgb_cfg->enable);
@@ -1761,6 +1858,11 @@ static int qpnp_rgb_set(struct qpnp_led_data *led)
 			led->rgb_cfg->pwm_cfg->pwm_enabled = 1;
 		}
 	} else {
+#ifdef CONFIG_NUBIA_BREATH_LEDS
+	        LOG_DEBUG_IF(led->debug_level,"set mode swith enable:%d mode:%d ",led->rgb_cfg->pwm_cfg->pwm_enabled,
+                led->rgb_cfg->pwm_cfg->mode);
+#endif
+
 		led->rgb_cfg->pwm_cfg->mode =
 			led->rgb_cfg->pwm_cfg->default_mode;
 		if (led->rgb_cfg->pwm_cfg->pwm_enabled) {
@@ -1776,8 +1878,10 @@ static int qpnp_rgb_set(struct qpnp_led_data *led)
 			return rc;
 		}
 	}
-
+    /*bug for workqueque sync let  blingking var error*/
+#ifdef CONFIG_ZTEMT_PRINTK_LED
 	led->rgb_cfg->pwm_cfg->blinking = false;
+#endif
 	qpnp_dump_regs(led, rgb_pwm_debug_regs, ARRAY_SIZE(rgb_pwm_debug_regs));
 
 	return 0;
@@ -1813,7 +1917,9 @@ static void __qpnp_led_work(struct qpnp_led_data *led,
 		mutex_lock(&flash_lock);
 	else
 		mutex_lock(&led->lock);
-
+#ifdef CONFIG_NUBIA_BREATH_LEDS
+	LOG_DEBUG_IF(led->debug_level,"set QPNP_ID_ :%d\n",led->id);
+#endif
 	switch (led->id) {
 	case QPNP_ID_WLED:
 		rc = qpnp_wled_set(led);
@@ -2722,6 +2828,477 @@ static ssize_t blink_store(struct device *dev,
 	return count;
 }
 
+#ifdef CONFIG_NUBIA_BREATH_LEDS
+#ifdef CONFIG_NUBIA_DOUBLE_LEDS
+static ssize_t qpnp_led_time_store(struct device *dev,
+	struct device_attribute *attr,
+	const char *buf, size_t count)
+{
+	ssize_t ret;
+	u32 previous_pause_hi;
+	u32 previous_pause_lo;
+	u32 previous_lut_flags;
+	struct pwm_config_data *pwm_cfg;
+	struct led_classdev *led_cdev = dev_get_drvdata(dev);
+	struct qpnp_led_data *led = container_of(led_cdev, struct qpnp_led_data, cdev);
+
+	ret = sscanf(buf, "%d %d", &led->hold_time_ms, &led->off_time_ms);
+	pr_info("qpnp_led_time_store: hold_time_ms=%d, off_time_ms=%d\n", led->hold_time_ms, led->off_time_ms);
+
+	pwm_cfg = led->rgb_cfg->pwm_cfg;
+	if (pwm_cfg->mode == LPG_MODE)
+		pwm_cfg->blinking = true;
+
+	previous_pause_hi = pwm_cfg->lut_params.lut_pause_hi;
+	previous_pause_lo = pwm_cfg->lut_params.lut_pause_lo;
+	previous_lut_flags = pwm_cfg->lut_params.flags;
+	if (pwm_cfg->pwm_enabled) {
+		pwm_disable(pwm_cfg->pwm_dev);
+		pwm_cfg->pwm_enabled = 0;
+	}
+
+	pwm_cfg->lut_params.lut_pause_hi = led->hold_time_ms;
+	pwm_cfg->lut_params.lut_pause_lo = led->off_time_ms;
+	pwm_cfg->lut_params.flags = (PM_PWM_LUT_LOOP | PM_PWM_LUT_REVERSE |
+		PM_PWM_LUT_RAMP_UP | PM_PWM_LUT_PAUSE_LO_EN | PM_PWM_LUT_PAUSE_HI_EN);
+	ret = qpnp_pwm_init(pwm_cfg, led->pdev, led->cdev.name);
+	if (ret) {
+		pwm_cfg->lut_params.lut_pause_hi = previous_pause_hi;
+		pwm_cfg->lut_params.lut_pause_lo = previous_pause_lo;
+		pwm_cfg->lut_params.flags = previous_lut_flags;
+		if (pwm_cfg->pwm_enabled) {
+			pwm_disable(pwm_cfg->pwm_dev);
+			pwm_cfg->pwm_enabled = 0;
+		}
+		qpnp_pwm_init(pwm_cfg, led->pdev, led->cdev.name);
+		qpnp_led_set(&led->cdev, led->cdev.brightness);
+		dev_err(&led->pdev->dev,
+			"Failed to initialize pwm with new pause hi/lo/lut flags value\n");
+		return ret;
+	}
+	qpnp_led_set(&led->cdev, led->cdev.brightness);
+	pr_info("qpnp_led_time_store success.\n");
+
+	return count;
+}
+static ssize_t qpnp_led_time_show(struct device *dev,
+	struct device_attribute *attr, char *buf)
+{
+	struct qpnp_led_data *led;
+	struct led_classdev *led_cdev = dev_get_drvdata(dev);
+	led = container_of(led_cdev, struct qpnp_led_data, cdev);
+
+	return snprintf(buf, PAGE_SIZE, "%d %d \n",
+		led->hold_time_ms, led->off_time_ms);
+}
+#endif
+
+static int fade_parameter_convert(int temp_start)
+{
+	 int temp_end;
+
+	 if(temp_start<=0)
+	     temp_end=0;
+	 else
+	     temp_end=(1<<(temp_start-1))*FADE_PARAM_CONVERT;
+
+
+	 return temp_end;
+}
+
+static int grade_parameter_convert(struct qpnp_led_data *led,int led_grade_temp)
+{
+	if(led_grade_temp){
+		if((led_grade_temp*led->rgb_cfg->grade_percentage) < 100)
+			led_grade_temp = CONST_MIN_GRADE;
+		else
+			led_grade_temp = led_grade_temp*led->rgb_cfg->grade_percentage/100 + led->rgb_cfg->grade_scale_offset;
+		if(led_grade_temp > CONST_MAX_GRADE)
+			led_grade_temp = CONST_MAX_GRADE;
+	}
+
+	 return led_grade_temp;
+}
+
+static int qpnp_led_fill_parameter_breath_blink(struct qpnp_led_data *led_param,struct pwm_config_data *pwm_cfg,bool loop)
+{
+    int local_lpg_parameter = 0;
+    int i = 0;
+
+    if(led_param == NULL||pwm_cfg == NULL)
+        return -EINVAL;
+
+     pwm_cfg->duty_cycles->num_duty_pcts = 0;
+     /*
+           *   convert frade parameters to  duty pcts, from min_grade to max_grade
+          *   get max PWM_LUT_MAX_SIZE number of duty_pcts.
+          */
+//    local_lpg_parameter = led_param->min_grade;
+    local_lpg_parameter = 0;
+    for(i = 0;i < PWM_LUT_MAX_SIZE; i++)
+    {
+        pwm_cfg->old_duty_pcts[i] = local_lpg_parameter;
+        pwm_cfg->duty_cycles->num_duty_pcts++;
+        if(local_lpg_parameter >= led_param->max_grade){
+            pwm_cfg->old_duty_pcts[i] = led_param->max_grade;
+            break;
+        }
+        local_lpg_parameter = local_lpg_parameter + BRIGHTNESS_STEP;
+    }
+   //leds_info("led_param->index:%d,num_duty_pcts:%d :led_param->max_grade:%d \n",i,pwm_cfg->duty_cycles->num_duty_pcts,led_param->max_grade);
+
+    /*
+       * fill parameter  for pwm_cfg.
+       */
+    pwm_cfg->duty_cycles->duty_pcts = pwm_cfg->old_duty_pcts;
+    pwm_cfg->lut_params.idx_len = pwm_cfg->duty_cycles->num_duty_pcts;
+    pwm_cfg->lut_params.ramp_step_ms = (fade_parameter_convert(led_param->fade_time)/
+                             pwm_cfg->duty_cycles->num_duty_pcts);
+    pwm_cfg->duty_cycles->start_idx = 0;
+    pwm_cfg->lut_params.start_idx = pwm_cfg->duty_cycles->start_idx;
+    pwm_cfg->lut_params.lut_pause_hi = fade_parameter_convert(led_param->fullon_time);
+    pwm_cfg->lut_params.lut_pause_lo = fade_parameter_convert(led_param->fulloff_time);
+
+ //   leds_info("led_param->fullon_time:%d,fulloff_time:%d\n",led_param->fullon_time,led_param->fulloff_time);
+
+//    leds_info("pause_hi:%d,pause_lo:%d :ramp_step_ms:%d\n", pwm_cfg->lut_params.lut_pause_hi, pwm_cfg->lut_params.lut_pause_lo,
+//        pwm_cfg->lut_params.ramp_step_ms );
+
+
+	if (loop)
+	{
+		pwm_cfg->lut_params.flags = (PM_PWM_LUT_LOOP | PM_PWM_LUT_REVERSE |
+		PM_PWM_LUT_RAMP_UP | PM_PWM_LUT_PAUSE_LO_EN | PM_PWM_LUT_PAUSE_HI_EN);
+	}
+	else
+	{
+		pwm_cfg->lut_params.flags = (PM_PWM_LUT_REVERSE | PM_PWM_LUT_RAMP_UP |
+		PM_PWM_LUT_PAUSE_LO_EN | PM_PWM_LUT_PAUSE_HI_EN);
+	}
+    pwm_cfg->blinking = true;
+    pwm_cfg->mode = pwm_cfg->default_mode;
+
+    return 0;
+}
+
+static int  qpnp_led_action_trigger(struct qpnp_led_data *led)
+{
+	ssize_t ret = -EINVAL;
+    struct pwm_config_data *pwm_cfg;
+
+	if (led == NULL)
+        return ret;
+
+	pwm_cfg = led->rgb_cfg->pwm_cfg;
+
+    if (pwm_cfg ==NULL)
+        return ret;
+
+    if (!!test_and_clear_bit(PWMF_REQUESTED, &pwm_cfg->pwm_dev->flags)) {
+	pwm_free(pwm_cfg->pwm_dev);
+    }
+
+    ret = qpnp_pwm_init(pwm_cfg, led->pdev, led->cdev.name);
+	if (ret) {
+		pwm_free(pwm_cfg->pwm_dev);
+		qpnp_pwm_init(pwm_cfg, led->pdev, led->cdev.name);
+		qpnp_led_set(&led->cdev, led->cdev.brightness);
+		LOG_DEBUG_IF(led->debug_level, "Failed to initialize pwm with new ramp step value\n");
+	}
+	qpnp_led_set(&led->cdev, led->cdev.brightness);
+
+    return ret;
+}
+
+
+static ssize_t fade_parameter_store(struct device *dev,
+	struct device_attribute *attr,
+	const char *buf, size_t count)
+{
+	char *after, *parm2,*parm3;
+	struct led_classdev *led_cdev = dev_get_drvdata(dev);
+	struct qpnp_led_data *led = container_of(led_cdev, struct qpnp_led_data, cdev);
+
+	mutex_lock(&led->qpnp_mutex);
+    led->fade_time = (int)simple_strtoul(buf, &after, 10);
+	while(isspace(*after))
+		after++;
+	parm2 = after;
+    led->fullon_time = (int)simple_strtoul(parm2, &after, 10);
+	while(isspace(*after))
+		after++;
+	parm3 = after;
+	led->fulloff_time = (int)simple_strtoul(parm3, &after, 10);
+	LOG_DEBUG_IF(led->debug_level, "fade_time=%d ,on_time=%d , off_time=%d\n",	led->fade_time,led->fullon_time,led->fulloff_time);
+	mutex_unlock(&led->qpnp_mutex);
+
+	return count;
+}
+
+static ssize_t fade_parameter_show(struct device *dev,
+	struct device_attribute *attr, char *buf)
+{
+	struct led_classdev *led_cdev = dev_get_drvdata(dev);
+	struct qpnp_led_data *led = container_of(led_cdev, struct qpnp_led_data, cdev);
+
+	return snprintf(buf, FADE_PARAM_LEN, "%4d %4d %4d\n",
+			led->fade_time, led->fullon_time, led->fulloff_time);
+}
+
+static ssize_t grade_parameter_store(struct device *dev,
+	struct device_attribute *attr,
+	const char *buf, size_t count)
+{
+	char *after, *parm2;
+	struct led_classdev *led_cdev = dev_get_drvdata(dev);
+	struct qpnp_led_data *led = container_of(led_cdev, struct qpnp_led_data, cdev);
+
+	mutex_lock(&led->qpnp_mutex);
+       led->min_grade=(int)simple_strtoul(buf, &after, 10);
+	while(isspace(*after))
+		after++;
+	parm2 = after;
+	led->max_grade=(int) simple_strtoul(parm2, &after, 10);
+	LOG_DEBUG_IF(led->debug_level, "min_grade=%d , max_grade=%d\n",led->min_grade,led->max_grade);
+	mutex_unlock(&led->qpnp_mutex);
+	return count;
+}
+
+static ssize_t grade_parameter_show(struct device *dev,
+	struct device_attribute *attr, char *buf)
+{
+	struct led_classdev *led_cdev = dev_get_drvdata(dev);
+	struct qpnp_led_data *led = container_of(led_cdev, struct qpnp_led_data, cdev);
+
+	return snprintf(buf, GRADE_PARAM_LEN, "%4d %4d\n",led->min_grade,led->max_grade);
+}
+#ifdef CONFIG_NUBIA_GPIO5_LEDS
+static void qpnp_set_gpio(struct qpnp_led_data *led, int enable)
+{
+	int err =0;
+	if(enable)
+	{
+		//leds_info("led->bgpio5_data:%x enable gpio 5 rgb green led \n",led->bgpio5_data);
+		if(led->bgpio5_data)
+			err=gpio_direction_output(led->bgpio5_data,0x01); //Output HIGH
+	}
+	else
+	{
+		//leds_info("led->bgpio5_data:%x disable gpio 5 rgb green led \n",led->bgpio5_data);
+		if(led->bgpio5_data)
+			err=gpio_direction_output(led->bgpio5_data,0x00); //Output LOW
+	}
+	if (err)
+	{
+		leds_info("error gpio driection output %d \n",enable);
+	}
+}
+#endif
+static ssize_t outn_store(struct device *dev,
+	struct device_attribute *attr,
+	const char *buf, size_t count)
+{
+	char *after;
+	struct led_classdev *led_cdev = dev_get_drvdata(dev);
+	struct qpnp_led_data *led = container_of(led_cdev, struct qpnp_led_data, cdev);
+
+	mutex_lock(&led->qpnp_mutex);
+	led->ztemt_channel = (int) simple_strtoul(buf, &after, 10);
+
+
+#ifdef CONFIG_NUBIA_GPIO5_LEDS
+
+	if(led->ztemt_channel ==0x60)   //GPIO
+	{
+		led->ztemt_channel=0x50;
+		qpnp_set_gpio(led,0x01);
+		led->bgpio5_Value=0x01;
+		leds_info( "enable green 2  RGB ztemt_channel=%d led->id:%d \n",led->ztemt_channel,led->id );
+	}
+	else
+	{
+		qpnp_set_gpio(led,0x00);
+		led->bgpio5_Value=0x00;
+		//leds_info( "fix RGB ztemt_channel=%d led->id:%d  \n",led->ztemt_channel,led->id );
+	}
+#endif
+#ifdef CONFIG_NUBIA_BREATH_LEDS
+	LOG_DEBUG_IF(led->debug_level, "ztemt_channel=%d \n",led->ztemt_channel);
+#endif
+	mutex_unlock(&led->qpnp_mutex);
+	return count;
+}
+
+static ssize_t outn_show(struct device *dev,
+	struct device_attribute *attr, char *buf)
+{
+	struct led_classdev *led_cdev = dev_get_drvdata(dev);
+	struct qpnp_led_data *led = container_of(led_cdev, struct qpnp_led_data, cdev);
+
+	return sprintf(buf, "%d\n",led->ztemt_channel);
+}
+static ssize_t qpnp_led_debug_store(struct device *dev,
+	struct device_attribute *attr,
+	const char *buf, size_t count)
+{
+	struct qpnp_led_data *led;
+	char *after;
+	struct led_classdev *led_cdev = dev_get_drvdata(dev);
+
+	unsigned long parameter_one = simple_strtoul(buf, &after, 10);
+	led = container_of(led_cdev, struct qpnp_led_data, cdev);
+	led->debug_level = (int) parameter_one;
+//	LOG_INFO("debug_level = %d \n",led->debug_level);
+
+//    leds_info("led->bgpio5_test:%x\n",led->bgpio5_test);
+//    gpio_direction_output(led->bgpio5_test,led->debug_level); //Output HIGH
+
+	return count;
+}
+
+static ssize_t qpnp_led_debug_show(struct device *dev,
+	struct device_attribute *attr, char *buf)
+{
+	struct qpnp_led_data *led;
+	struct led_classdev *led_cdev = dev_get_drvdata(dev);
+	led = container_of(led_cdev, struct qpnp_led_data, cdev);
+	led->debug_level = !led->debug_level;
+	return sprintf(buf, "%d\n", led->debug_level);
+}
+
+static int  qpnp_led_mode_set(struct qpnp_led_data *led,struct qpnp_led_data *led_param)
+{
+	struct pwm_config_data *pwm_cfg;
+	bool loop = false;
+	int led_grade_temp =0;
+
+	if (NULL == led || NULL == led_param)
+		return -ENODEV;
+
+	pwm_cfg = led->rgb_cfg->pwm_cfg;
+
+	if (NULL == pwm_cfg)
+		return -ENODEV;
+#ifdef CONFIG_NUBIA_BREATH_LEDS
+	LOG_DEBUG_IF(led->debug_level,"set mode swith ztemt_mode:%d ",led_param->ztemt_mode);
+#endif
+	leds_info("ztemt_mode:%d led_on channel:%d brightness:%d,led_grade:%d \n",
+		led_param->ztemt_mode,
+		led_param->ztemt_channel,led_grade_temp,led->cdev.brightness);
+	switch (led_param->ztemt_mode){
+		case RGB_LED_MODE_CLOSED:
+		case RGB_LED_MODE_OFF:
+			pwm_cfg->blinking = false;
+			led->cdev.brightness =0;
+			if (!led->rgb_cfg->is_auto_breath)
+			{
+				  pwm_cfg->mode =PWM_MODE;
+			}
+			else
+			{
+				  pwm_cfg->mode = pwm_cfg->default_mode;
+			}
+		break;
+		case RGB_LED_MODE_CONSTANT_ON:
+			/* when led constant on, keep five multiple of min grade */
+			led_grade_temp=led_param->min_grade;
+			pwm_cfg->blinking = true;
+			pwm_cfg->mode = PWM_MODE;
+			led->cdev.brightness = grade_parameter_convert(led,led_grade_temp);
+
+                   leds_info("led_on channel:%d brightness:%d,led_grade:%d \n",led_param->ztemt_channel,led_grade_temp,led->cdev.brightness);
+		break;
+		case RGB_LED_MODE_ONCE_BLINK:
+			if (!led->rgb_cfg->is_auto_breath)
+			{
+				led_grade_temp=led_param->min_grade;
+				pwm_cfg->blinking = true;
+				pwm_cfg->mode = PWM_MODE;
+				led->cdev.brightness = grade_parameter_convert(led,led_grade_temp);
+			}
+			else
+			{
+				led_param->max_grade = led->rgb_cfg->onceblink_max_grade;
+				qpnp_led_fill_parameter_breath_blink(led_param,pwm_cfg,loop);
+				led->cdev.brightness=led->cdev.max_brightness;
+			}
+		break;
+		case RGB_LED_MODE_AUTO_BLINK:
+			loop = true;
+			led_param->fade_time= led->rgb_cfg->autoblink_fade_time;
+			led_param->fullon_time= led->rgb_cfg->autoblink_fullon_time;
+			led_param->fulloff_time = led->rgb_cfg->autoblink_fulloff_time;
+			led_param->fade_time= led_param->fade_time;
+			led_param->fullon_time=  led_param->fullon_time;
+			led_param->fulloff_time=led_param->fulloff_time;
+			LOG_DEBUG_IF(led->debug_level,"fade_time:%x fullon_time:%x,fulloff_time:%x\n",led_param->fade_time,
+					led_param->fullon_time,led_param->fulloff_time);
+
+			led_param->max_grade = led->rgb_cfg->autoblink_max_grade;
+			qpnp_led_fill_parameter_breath_blink(led_param, pwm_cfg,loop);
+			led->cdev.brightness=led->cdev.max_brightness;
+		break;
+		default:
+		return -EINVAL;
+    }
+    //trigger led
+    qpnp_led_action_trigger(led);
+    return 0;
+
+}
+
+static ssize_t qpnp_led_mode_store(struct device *dev,
+	                     struct device_attribute *attr,
+	                      const char *buf, size_t count)
+
+{
+	char *after;
+	struct led_classdev *led_cdev = dev_get_drvdata(dev);
+	struct qpnp_led_data *led = container_of(led_cdev, struct qpnp_led_data, cdev);
+	struct qpnp_led_data *led_array = dev_get_drvdata(&led->pdev->dev);
+	int i;
+
+	mutex_lock(&led->qpnp_mutex);
+	led->ztemt_mode=(int) simple_strtoul(buf, &after,10);
+
+	LOG_DEBUG_IF(led->debug_level, "blink_mode=%d\n",led->ztemt_mode);
+
+	if(led->min_grade < 0){
+		led->min_grade = 0;
+	}else if(led->min_grade > led->cdev.max_brightness){
+	   led->min_grade =led->cdev.max_brightness;
+	}
+	if(led->max_grade < 0){
+		led->max_grade = 0;
+	}else if(led->max_grade > led->cdev.max_brightness){
+		led->max_grade = led->cdev.max_brightness;
+	}
+
+	for (i = 0; i < led->num_leds; i++)
+	{
+		LOG_DEBUG_IF(led->debug_level,"led->ztemt_channel:%d,led_channel:%d,%d,\n",led->ztemt_channel,
+			(&led_array[i])->rgb_cfg->led_channel,i);
+
+		if (led->ztemt_channel == (&led_array[i])->rgb_cfg->led_channel)
+		{
+			qpnp_led_mode_set(&led_array[i],led);
+		}
+	}
+	mutex_unlock(&led->qpnp_mutex);
+	return count;
+}
+
+
+
+static ssize_t qpnp_led_mode_show(struct device *dev,
+	struct device_attribute *attr, char *buf)
+{
+	struct led_classdev *led_cdev = dev_get_drvdata(dev);
+	struct qpnp_led_data *led = container_of(led_cdev, struct qpnp_led_data, cdev);
+
+	return sprintf(buf, "%d\n",led->ztemt_mode);
+}
+#endif
 static DEVICE_ATTR(led_mode, 0664, NULL, led_mode_store);
 static DEVICE_ATTR(strobe, 0664, NULL, led_strobe_type_store);
 static DEVICE_ATTR(pwm_us, 0664, NULL, pwm_us_store);
@@ -2732,6 +3309,16 @@ static DEVICE_ATTR(ramp_step_ms, 0664, NULL, ramp_step_ms_store);
 static DEVICE_ATTR(lut_flags, 0664, NULL, lut_flags_store);
 static DEVICE_ATTR(duty_pcts, 0664, NULL, duty_pcts_store);
 static DEVICE_ATTR(blink, 0664, NULL, blink_store);
+#ifdef CONFIG_NUBIA_BREATH_LEDS
+static DEVICE_ATTR(blink_mode, 0664, qpnp_led_mode_show, qpnp_led_mode_store);
+static DEVICE_ATTR(fade_parameter, 0664, fade_parameter_show, fade_parameter_store);
+static DEVICE_ATTR(grade_parameter, 0664, grade_parameter_show, grade_parameter_store);
+static DEVICE_ATTR(outn, 0664, outn_show, outn_store);
+static DEVICE_ATTR(debug, 0664, qpnp_led_debug_show, qpnp_led_debug_store);
+#ifdef CONFIG_NUBIA_DOUBLE_LEDS
+static DEVICE_ATTR(delay, 0664, qpnp_led_time_show, qpnp_led_time_store);
+#endif
+#endif
 
 static struct attribute *led_attrs[] = {
 	&dev_attr_led_mode.attr,
@@ -2755,6 +3342,16 @@ static struct attribute *lpg_attrs[] = {
 	&dev_attr_ramp_step_ms.attr,
 	&dev_attr_lut_flags.attr,
 	&dev_attr_duty_pcts.attr,
+#ifdef CONFIG_NUBIA_BREATH_LEDS
+	&dev_attr_blink_mode.attr,
+	&dev_attr_fade_parameter.attr,
+	&dev_attr_grade_parameter.attr,
+	&dev_attr_outn.attr,
+	&dev_attr_debug.attr,
+#ifdef CONFIG_NUBIA_DOUBLE_LEDS
+	&dev_attr_delay.attr,
+#endif
+#endif
 	NULL
 };
 
@@ -3654,6 +4251,59 @@ static int qpnp_get_config_rgb(struct qpnp_led_data *led,
 	if (!led->rgb_cfg)
 		return -ENOMEM;
 
+ #ifdef CONFIG_NUBIA_BREATH_LEDS
+
+	rc = of_property_read_u32(node, "qcom,is_auto_breath", &led->rgb_cfg->is_auto_breath);
+	if (rc < 0) {
+		dev_err(&led->pdev->dev,
+			"Failure reading is_auto_breath, rc =  %d\n", rc);
+	}
+	rc = of_property_read_u32(node, "qcom,led_channel", &led->rgb_cfg->led_channel);
+	if (rc < 0) {
+		dev_err(&led->pdev->dev,
+			"Failure reading led_channel, rc =  %d\n", rc);
+	}
+	dev_err(&led->pdev->dev,
+			"is_auto_breath=  %d\n", led->rgb_cfg->is_auto_breath);
+
+	rc = of_property_read_u32(node, "nubia,grade_percentage", &led->rgb_cfg->grade_percentage);
+	if (rc < 0) {
+		dev_err(&led->pdev->dev,
+			"Failure reading grade_percentage, rc =  %d\n", rc);
+	}
+	rc = of_property_read_u32(node, "nubia,grade_scale_offset", &led->rgb_cfg->grade_scale_offset);
+	if (rc < 0) {
+		dev_err(&led->pdev->dev,
+			"Failure reading grade_scale_offset, rc =  %d\n", rc);
+	}
+	if (led->rgb_cfg->is_auto_breath){
+		rc = of_property_read_u32(node, "nubia,fade_time", &led->rgb_cfg->autoblink_fade_time);
+		if (rc < 0) {
+			dev_err(&led->pdev->dev,
+				"Failure reading fade_time, rc =  %d\n", rc);
+		}
+		rc = of_property_read_u32(node, "nubia,fullon_time", &led->rgb_cfg->autoblink_fullon_time);
+		if (rc < 0) {
+			dev_err(&led->pdev->dev,
+				"Failure reading fullon_time, rc =  %d\n", rc);
+		}
+		rc = of_property_read_u32(node, "nubia,fulloff_time", &led->rgb_cfg->autoblink_fulloff_time);
+		if (rc < 0) {
+			dev_err(&led->pdev->dev,
+				"Failure reading fulloff_time, rc =  %d\n", rc);
+		}
+		rc = of_property_read_u32(node, "nubia,onceblink_max_grade", &led->rgb_cfg->onceblink_max_grade);
+		if (rc < 0) {
+			dev_err(&led->pdev->dev,
+				"Failure reading onceblink_max_grade, rc =  %d\n", rc);
+		}
+		rc = of_property_read_u32(node, "nubia,autoblink_max_grade", &led->rgb_cfg->autoblink_max_grade);
+		if (rc < 0) {
+			dev_err(&led->pdev->dev,
+				"Failure reading autoblink_max_grade, rc =  %d\n", rc);
+		}
+	}
+#endif
 	if (led->id == QPNP_ID_RGB_RED)
 		led->rgb_cfg->enable = RGB_LED_ENABLE_RED;
 	else if (led->id == QPNP_ID_RGB_GREEN)
@@ -3863,7 +4513,17 @@ static int qpnp_get_config_gpio(struct qpnp_led_data *led,
 err_config_gpio:
 	return rc;
 }
-
+#ifdef CONFIG_NUBIA_BREATH_LEDS
+static void qpnp_led_shutdown(struct platform_device *pdev)
+{
+	struct qpnp_led_data *led_array  = dev_get_drvdata(&pdev->dev);
+	int i, parsed_leds = led_array->num_leds;
+	for (i = 0; i < parsed_leds; i++) {
+		led_array[i].cdev.brightness = 0;
+			__qpnp_led_work(&led_array[i], led_array[i].cdev.brightness);
+	}
+}
+#endif
 static int qpnp_leds_probe(struct platform_device *pdev)
 {
 	struct qpnp_led_data *led, *led_array;
@@ -3872,7 +4532,11 @@ static int qpnp_leds_probe(struct platform_device *pdev)
 	int rc, i, num_leds = 0, parsed_leds = 0;
 	const char *led_label;
 	bool regulator_probe = false;
-
+#ifdef CONFIG_NUBIA_BREATH_LEDS
+#ifdef CONFIG_NUBIA_GPIO5_LEDS
+    int leds_gpio5;
+#endif
+#endif
 	node = pdev->dev.of_node;
 	if (node == NULL)
 		return -ENODEV;
@@ -3880,7 +4544,9 @@ static int qpnp_leds_probe(struct platform_device *pdev)
 	temp = NULL;
 	while ((temp = of_get_next_child(node, temp)))
 		num_leds++;
-
+#ifdef CONFIG_NUBIA_BREATH_LEDS
+	leds_info("num_leds:%d\n",num_leds);
+#endif
 	if (!num_leds)
 		return -ECHILD;
 
@@ -3888,10 +4554,27 @@ static int qpnp_leds_probe(struct platform_device *pdev)
 				GFP_KERNEL);
 	if (!led_array)
 		return -ENOMEM;
+#ifdef CONFIG_NUBIA_BREATH_LEDS
+#ifdef CONFIG_NUBIA_GPIO5_LEDS
+    leds_gpio5 = of_get_named_gpio(node, "test-gpios", 0);
+	if (!gpio_is_valid(leds_gpio5)){
+		leds_info("TLMM leds pm gpio5 not found\n");
+	}
+	else
+		leds_info("leds_gpio5:0x%x\n",leds_gpio5);
+
+	rc = gpio_request(leds_gpio5, "NUBIA_LEDS_GPIO5");
+	if (rc < 0){
+		leds_info("Failed to request GPIO:%d, ERRNO:%d", (int)leds_gpio5, rc);
+		rc = -ENODEV;
+	}
+#endif
+#endif
 
 	for_each_child_of_node(node, temp) {
 		led = &led_array[parsed_leds];
 		led->num_leds = num_leds;
+
 		led->regmap = dev_get_regmap(pdev->dev.parent, NULL);
 		if (!led->regmap) {
 			dev_err(&pdev->dev, "Couldn't get parent's regmap\n");
@@ -3907,6 +4590,9 @@ static int qpnp_leds_probe(struct platform_device *pdev)
 			goto fail_id_check;
 		}
 		led->base = base;
+#ifdef CONFIG_NUBIA_BREATH_LEDS
+		leds_info("led->base:0x%x\n",led->base);
+#endif
 
 		rc = of_property_read_string(temp, "label", &led_label);
 		if (rc < 0) {
@@ -3922,7 +4608,9 @@ static int qpnp_leds_probe(struct platform_device *pdev)
 				"Failure reading led name, rc = %d\n", rc);
 			goto fail_id_check;
 		}
-
+#ifdef CONFIG_NUBIA_BREATH_LEDS
+		leds_info("qcom,id:%s\n",led->cdev.name);
+#endif
 		rc = of_property_read_u32(temp, "qcom,max-current",
 			&led->max_current);
 		if (rc < 0) {
@@ -3937,7 +4625,9 @@ static int qpnp_leds_probe(struct platform_device *pdev)
 				"Failure reading led id, rc =  %d\n", rc);
 			goto fail_id_check;
 		}
-
+#ifdef CONFIG_NUBIA_BREATH_LEDS
+		leds_info("qcom,id:%d\n",led->id);
+#endif
 		rc = qpnp_get_common_configs(led, temp);
 		if (rc) {
 			dev_err(&led->pdev->dev, "Failure reading common led configuration, rc = %d\n",
@@ -3948,6 +4638,9 @@ static int qpnp_leds_probe(struct platform_device *pdev)
 		led->cdev.brightness_set    = qpnp_led_set;
 		led->cdev.brightness_get    = qpnp_led_get;
 
+#ifdef CONFIG_NUBIA_BREATH_LEDS
+		mutex_init(&led->qpnp_mutex);
+#endif
 		if (strcmp(led_label, "wled") == 0) {
 			rc = qpnp_get_config_wled(led, temp);
 			if (rc < 0) {
@@ -4031,6 +4724,23 @@ static int qpnp_leds_probe(struct platform_device *pdev)
 		if (rc < 0)
 			goto fail_id_check;
 
+#ifdef CONFIG_NUBIA_BREATH_LEDS
+#ifdef CONFIG_NUBIA_GPIO5_LEDS
+		if(led->id == QPNP_ID_RGB_RED)
+		{
+			led->bgpio5_data =leds_gpio5;
+			leds_info("led->bgpio5_data:0x%x\n",led->bgpio5_data);
+		}
+#endif
+		if (led->id == QPNP_ID_RGB_RED){
+		        rc = led_classdev_register(&pdev->dev, &led->cdev);
+		        if (rc) {
+		            dev_err(&pdev->dev, "unable to register led %d,rc=%d\n",
+		                     led->id, rc);
+		            goto fail_id_check;
+		        }
+		}
+#else
 		rc = led_classdev_register(&pdev->dev, &led->cdev);
 		if (rc) {
 			dev_err(&pdev->dev,
@@ -4038,7 +4748,7 @@ static int qpnp_leds_probe(struct platform_device *pdev)
 						 led->id, rc);
 			goto fail_id_check;
 		}
-
+#endif
 		if (led->id == QPNP_ID_FLASH1_LED0 ||
 			led->id == QPNP_ID_FLASH1_LED1) {
 			rc = sysfs_create_group(&led->cdev.dev->kobj,
@@ -4073,9 +4783,14 @@ static int qpnp_leds_probe(struct platform_device *pdev)
 				if (rc)
 					goto fail_id_check;
 			}
+#ifdef CONFIG_NUBIA_BREATH_LEDS
+		} else if (led->id == QPNP_ID_RGB_RED)
+		{
+#else
 		} else if ((led->id == QPNP_ID_RGB_RED) ||
 			(led->id == QPNP_ID_RGB_GREEN) ||
 			(led->id == QPNP_ID_RGB_BLUE)) {
+#endif
 			if (led->rgb_cfg->pwm_cfg->mode == PWM_MODE) {
 				rc = sysfs_create_group(&led->cdev.dev->kobj,
 					&pwm_attr_group);
@@ -4146,7 +4861,12 @@ fail_id_check:
 			destroy_workqueue(led_array[i].workqueue);
 		led_classdev_unregister(&led_array[i].cdev);
 	}
-
+#ifdef CONFIG_NUBIA_BREATH_LEDS
+#ifdef CONFIG_NUBIA_GPIO5_LEDS
+	if (leds_gpio5)
+		gpio_free(leds_gpio5);
+#endif
+#endif
 	return rc;
 }
 
@@ -4164,6 +4884,9 @@ static int qpnp_leds_remove(struct platform_device *pdev)
 		if (led_array[i].in_order_command_processing)
 			destroy_workqueue(led_array[i].workqueue);
 		led_classdev_unregister(&led_array[i].cdev);
+#ifdef CONFIG_NUBIA_BREATH_LEDS
+		leds_info("num_leds led_array[%d].id:%d\n",i,led_array[i].id);
+#endif
 		switch (led_array[i].id) {
 		case QPNP_ID_WLED:
 			break;
@@ -4194,6 +4917,15 @@ static int qpnp_leds_remove(struct platform_device *pdev)
 				   == LPG_MODE)
 				sysfs_remove_group(&led_array[i].cdev.dev->kobj,
 							&lpg_attr_group);
+
+#ifdef CONFIG_NUBIA_BREATH_LEDS
+#ifdef CONFIG_NUBIA_GPIO5_LEDS
+			if (led_array[i].id==QPNP_ID_RGB_RED && led_array[i].bgpio5_data)
+			{
+				gpio_free(led_array[i].bgpio5_data);
+			}
+#endif
+#endif
 			break;
 		case QPNP_ID_LED_MPP:
 			if (!led_array[i].mpp_cfg->pwm_cfg)
@@ -4254,6 +4986,9 @@ static struct platform_driver qpnp_leds_driver = {
 	},
 	.probe		= qpnp_leds_probe,
 	.remove		= qpnp_leds_remove,
+#ifdef CONFIG_NUBIA_BREATH_LEDS
+	.shutdown   = qpnp_led_shutdown,
+#endif
 };
 
 static int __init qpnp_led_init(void)

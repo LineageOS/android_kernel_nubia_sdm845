@@ -748,10 +748,16 @@ static int cpufreq_set_cur_state(struct thermal_cooling_device *cdev,
 			if (sched_isolate_cpu(cpu))
 				cpumask_clear_cpu(cpu,
 					&cpus_isolated_by_thermal);
+			//nubia add begin
+			pr_err("nubialog:cpu%d isolated_by_thermal\n",cpu);
+			//nubia add end
 		}
 		return ret;
 	} else if ((prev_state == cpufreq_device->max_level)
 			&& (state < cpufreq_device->max_level)) {
+		//nubia add begin
+		pr_err("nubialog:cpu%d reset_isolated_by_thermal\n",cpu);
+		//nubia add end
 		if (cpumask_test_and_clear_cpu(cpu, &cpus_pending_online)) {
 			cpu_dev = get_cpu_device(cpu);
 			ret = device_online(cpu_dev);

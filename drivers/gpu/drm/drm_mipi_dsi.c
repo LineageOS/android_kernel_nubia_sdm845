@@ -35,6 +35,10 @@
 
 #include <video/mipi_display.h>
 
+#ifdef CONFIG_NUBIA_SWITCH_LCD
+extern int switch_panel_res;
+#endif
+
 /**
  * DOC: dsi helpers
  *
@@ -1058,6 +1062,15 @@ int mipi_dsi_dcs_set_display_brightness(struct mipi_dsi_device *dsi,
 	u8 payload[2] = { brightness & 0xff, brightness >> 8 };
 	ssize_t err;
 
+#ifdef CONFIG_NUBIA_SWITCH_LCD
+	if(switch_panel_res==1){
+		payload[0] = brightness >> 8;
+		payload[1] = brightness & 0xff;
+	}else{
+		payload[0] = brightness & 0xff;
+		payload[1] = brightness >> 8;
+	}
+#endif
 	err = mipi_dsi_dcs_write(dsi, MIPI_DCS_SET_DISPLAY_BRIGHTNESS,
 				 payload, sizeof(payload));
 	if (err < 0)

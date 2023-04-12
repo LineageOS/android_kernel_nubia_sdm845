@@ -141,6 +141,8 @@
 #define MISC_CHGR_TRIM_OPTIONS_REG		(MISC_BASE + 0x55)
 #define CMD_RBIAS_EN_BIT			BIT(2)
 
+
+
 #define MISC_ENG_SDCDC_INPUT_CURRENT_CFG1_REG	(MISC_BASE + 0xC8)
 #define PROLONG_ISENSE_MASK			GENMASK(7, 6)
 #define PROLONG_ISENSEM_SHIFT			6
@@ -1356,6 +1358,9 @@ static int smb1355_probe(struct platform_device *pdev)
 	struct smb1355 *chip;
 	const struct of_device_id *id;
 	int rc = 0;
+	#if defined(CONFIG_NUBIA_CHARGE_FEATURE)
+	int rc1 = 0;
+	#endif
 
 	chip = devm_kzalloc(&pdev->dev, sizeof(*chip), GFP_KERNEL);
 	if (!chip)
@@ -1420,6 +1425,12 @@ static int smb1355_probe(struct platform_device *pdev)
 		goto cleanup;
 	}
 
+	//enable 1355 charge when vbat is above 3.4V
+	#if defined(CONFIG_NUBIA_CHARGE_FEATURE)
+	rc1= smb1355_write(chip, 0x1074, 0x3);
+	if (rc1 < 0)
+		pr_err("NEO:Couldn't set 0x1074 = 0x3, rc1=%d\n", rc1);
+	#endif
 	chip->irq_disable_votable = create_votable("SMB1355_IRQ_DISABLE",
 			VOTE_SET_ANY, smb1355_irq_disable_callback, chip);
 	if (IS_ERR(chip->irq_disable_votable)) {

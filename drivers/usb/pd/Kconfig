@@ -26,4 +26,10 @@ config QPNP_USB_PDPHY
 	  which communicates over the SPMI bus. The is used to handle
 	  the PHY layer communication of the Power Delivery stack.
 
+config NUBIA_USB_HIGH_SPEED
+	bool "nubia set USB max speed to High-Speed"
+	default n
+	help
+          Set USB max speed to High-Speed.
+
 endmenu

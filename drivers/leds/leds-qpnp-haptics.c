@@ -10,7 +10,7 @@
  * GNU General Public License for more details.
  */
 
-#define pr_fmt(fmt)	"haptics: %s: " fmt, __func__
+#define pr_fmt(fmt)	"[haptics] [%s: %d] " fmt, __func__,__LINE__
 
 #include <linux/atomic.h>
 #include <linux/delay.h>
@@ -29,6 +29,35 @@
 #include <linux/qpnp/qpnp-misc.h>
 #include <linux/qpnp/qpnp-revid.h>
 
+#define DEBUG_HAPTIC
+#define QPNP_HAPTIC_MIN_START_TIME  100
+
+#ifdef CONFIG_FEATURE_ZTEMT_HAPTIC_VIBRATOR
+//#define CONFIG_FEATURE_ZTEMT_HAPTIC_VIBRATOR
+#ifdef DEBUG_HAPTIC
+#define hap_info(fmt, args...)  pr_info(fmt, ##args)
+#define hap_err(fmt, args...)  pr_err(  fmt, ##args)
+#define hap_wan(fmt, args...)  pr_warn( fmt, ##args)
+#define hap_bug_if(en, fmt, args...) \
+do { \
+    if (en) { \
+        printk(KERN_ERR "[haptics] [%s :%d] " fmt,\
+					  __FUNCTION__, __LINE__, ##args); \
+    }; \
+} while (0)
+#else
+#define hap_info(fmt, args...)
+#define hap_err(fmt, args...)
+#define hap_wan(fmt, args...)
+#define hap_bug_if(en, fmt, args...)
+#endif
+#else
+#define hap_info(fmt, args...)
+#define hap_err(fmt, args...)
+#define hap_wan(fmt, args...)
+#define hap_bug_if(en, fmt, args...)
+
+#endif
 /* Register definitions */
 #define HAP_STATUS_1_REG(chip)		(chip->base + 0x0A)
 #define HAP_BUSY_BIT			BIT(1)
@@ -358,6 +387,10 @@ struct hap_chip {
 	bool				play_irq_en;
 	bool				auto_res_err_recovery_hw;
 	bool				vcc_pon_enabled;
+#ifdef CONFIG_FEATURE_ZTEMT_HAPTIC_VIBRATOR
+	u32				ztemt_vibrator_ms;
+    u8              debug_level;
+#endif
 };
 
 static int qpnp_haptics_parse_buffer_dt(struct hap_chip *chip);
@@ -502,8 +535,16 @@ static int qpnp_haptics_auto_res_enable(struct hap_chip *chip, bool enable)
 	 * Do not enable auto resonance if auto mode is enabled and auto
 	 * resonance mode is QWD, meaning long pattern.
 	 */
+#ifdef CONFIG_FEATURE_ZTEMT_HAPTIC_VIBRATOR
+	hap_bug_if(chip->debug_level,"lra_auto_mode:%d auto_res_mode_qwd:%d enable: %d ",
+	    chip->lra_auto_mode,auto_res_mode_qwd,enable);
+#endif
+
 	if (chip->lra_auto_mode && auto_res_mode_qwd && enable) {
 		pr_debug("auto_mode enabled, not enabling auto_res\n");
+#ifdef CONFIG_FEATURE_ZTEMT_HAPTIC_VIBRATOR
+        hap_bug_if(chip->debug_level,"auto_mode enabled, not enabling auto_res\n");
+#endif
 		return 0;
 	}
 
@@ -538,6 +579,9 @@ static int qpnp_haptics_auto_res_enable(struct hap_chip *chip, bool enable)
 		chip->status_flags &= ~AUTO_RESONANCE_ENABLED;
 
 	pr_debug("auto_res %sabled\n", enable ? "en" : "dis");
+#ifdef CONFIG_FEATURE_ZTEMT_HAPTIC_VIBRATOR
+    hap_bug_if(chip->debug_level,"auto_res %sabled\n", enable ? "en" : "dis");
+#endif
 	return rc;
 }
 
@@ -558,6 +602,9 @@ static int qpnp_haptics_update_rate_cfg(struct hap_chip *chip, u16 play_rate)
 		return rc;
 
 	pr_debug("Play rate code 0x%x\n", play_rate);
+#ifdef CONFIG_FEATURE_ZTEMT_HAPTIC_VIBRATOR
+    hap_bug_if(chip->debug_level,"Play rate code 0x%x\n", play_rate);
+#endif
 	chip->last_rate_cfg = play_rate;
 	return 0;
 }
@@ -581,6 +628,10 @@ static void qpnp_haptics_update_lra_frequency(struct hap_chip *chip)
 
 	pr_debug("lra_auto_res_lo = 0x%x lra_auto_res_hi = 0x%x play_rate_code = 0x%x\n",
 		lra_auto_res[0], lra_auto_res[1], play_rate_code);
+#ifdef CONFIG_FEATURE_ZTEMT_HAPTIC_VIBRATOR
+    hap_bug_if(chip->debug_level,"lra_auto_res_lo = 0x%x lra_auto_res_hi = 0x%x play_rate_code = 0x%x\n",
+		lra_auto_res[0], lra_auto_res[1], play_rate_code);
+#endif
 
 	rc = qpnp_haptics_read_reg(chip, HAP_STATUS_1_REG(chip), &val, 1);
 	if (rc < 0)
@@ -592,7 +643,12 @@ static void qpnp_haptics_update_lra_frequency(struct hap_chip *chip)
 	 * than the min limit percent variation specified through DT, then
 	 * auto-resonance is disabled.
 	 */
-
+#ifdef CONFIG_FEATURE_ZTEMT_HAPTIC_VIBRATOR
+    hap_bug_if(chip->debug_level,"play rate %x val:%x out of bounds [min: 0x%x, max: 0x%x]\n",
+				play_rate_code,val,
+				chip->drive_period_code_min_limit,
+				chip->drive_period_code_max_limit);
+#endif
 	if ((val & AUTO_RES_ERROR_BIT) ||
 		((play_rate_code <= chip->drive_period_code_min_limit) ||
 		(play_rate_code >= chip->drive_period_code_max_limit))) {
@@ -617,6 +673,13 @@ static void qpnp_haptics_update_lra_frequency(struct hap_chip *chip)
 	rc = qpnp_haptics_update_rate_cfg(chip, rate_cfg);
 	if (rc < 0)
 		pr_debug("Error in updating rate_cfg\n");
+
+#ifdef CONFIG_FEATURE_ZTEMT_HAPTIC_VIBRATOR
+    hap_bug_if(chip->debug_level,"rate_cfg:%d rate_cfg:%x play rate 0x%x val:0x%x  [min: 0x%x, max: 0x%x]\n",
+        rate_cfg,rate_cfg,play_rate_code,val,
+		chip->drive_period_code_min_limit,
+		chip->drive_period_code_max_limit);
+#endif
 }
 
 #define MAX_RETRIES	5
@@ -656,6 +719,9 @@ static bool is_haptics_idle(struct hap_chip *chip)
 			return true;
 	}
 
+#ifdef CONFIG_FEATURE_ZTEMT_HAPTIC_VIBRATOR
+    hap_bug_if(chip->debug_level,"Haptics Busy after %d val:%x retries\n", i,val);
+#endif
 	if (i >= MAX_RETRIES && (val & HAP_BUSY_BIT)) {
 		pr_debug("Haptics Busy after %d retries\n", i);
 		return false;
@@ -712,6 +778,9 @@ static int qpnp_haptics_play_control(struct hap_chip *chip,
 		return rc;
 	}
 
+#ifdef CONFIG_FEATURE_ZTEMT_HAPTIC_VIBRATOR
+    hap_bug_if(chip->debug_level,"haptics play ctrl: %d val:%x \n", ctrl,val );
+#endif
 	pr_debug("haptics play ctrl: %d\n", ctrl);
 	return rc;
 }
@@ -726,6 +795,7 @@ static int qpnp_haptics_play(struct hap_chip *chip, bool enable)
 
 	mutex_lock(&chip->play_lock);
 
+	hap_info("enable:%d time_ms:%d chip->play_mode:%d\n",enable,time_ms,chip->play_mode);
 	if (enable) {
 		if (chip->play_mode == HAP_PWM) {
 			rc = pwm_enable(chip->pwm_data.pwm_dev);
@@ -804,7 +874,9 @@ static void qpnp_haptics_work(struct work_struct *work)
 
 	enable = atomic_read(&chip->state);
 	pr_debug("state: %d\n", enable);
-
+#ifdef CONFIG_FEATURE_ZTEMT_HAPTIC_VIBRATOR
+    hap_bug_if(chip->debug_level,"state: %d\n", enable);
+#endif
 	if (chip->vcc_pon && enable && !chip->vcc_pon_enabled) {
 		rc = regulator_enable(chip->vcc_pon);
 		if (rc < 0)
@@ -1066,7 +1138,11 @@ static int qpnp_haptics_lra_auto_res_config(struct hap_chip *chip,
 		mask = LRA_AUTO_RES_MODE_MASK | LRA_HIGH_Z_MASK |
 			LRA_RES_CAL_MASK;
 	}
-
+#ifdef CONFIG_FEATURE_ZTEMT_HAPTIC_VIBRATOR
+    hap_bug_if(chip->debug_level,"mode: %d hi_z period: %d cal_period: %d\n",
+		ares_cfg->auto_res_mode, ares_cfg->lra_high_z,
+		ares_cfg->lra_res_cal_period);
+#endif
 	pr_debug("mode: %d hi_z period: %d cal_period: %d\n",
 		ares_cfg->auto_res_mode, ares_cfg->lra_high_z,
 		ares_cfg->lra_res_cal_period);
@@ -1220,6 +1296,11 @@ static int qpnp_haptics_auto_mode_config(struct hap_chip *chip, int time_ms)
 	old_ares_mode = chip->ares_cfg.auto_res_mode;
 	old_play_mode = chip->play_mode;
 	pr_debug("auto_mode, time_ms: %d\n", time_ms);
+
+#ifdef CONFIG_FEATURE_ZTEMT_HAPTIC_VIBRATOR
+    hap_bug_if(chip->debug_level,"auto_mode, time_ms: %d\n", time_ms);
+#endif
+
 	if (time_ms <= 20) {
 		wave_samp[0] = HAP_WF_SAMP_MAX;
 		wave_samp[1] = HAP_WF_SAMP_MAX;
@@ -1448,7 +1529,80 @@ static ssize_t qpnp_haptics_store_state(struct device *dev,
 	/* At present, nothing to do with setting state */
 	return count;
 }
+#ifdef CONFIG_FEATURE_ZTEMT_HAPTIC_VIBRATOR
+static ssize_t qpnp_haptics_show_debug(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	struct led_classdev *cdev = dev_get_drvdata(dev);
+	struct hap_chip *chip = container_of(cdev, struct hap_chip, cdev);
 
+	return snprintf(buf, PAGE_SIZE, "%d\n", chip->debug_level);
+}
+
+static ssize_t qpnp_haptics_store_debug(struct device *dev,
+		struct device_attribute *attr, const char *buf, size_t count)
+{
+	struct led_classdev *cdev = dev_get_drvdata(dev);
+	struct hap_chip *chip = container_of(cdev, struct hap_chip, cdev);
+	int data,rc;
+
+	rc = kstrtoint(buf, 10, &data);
+	if (rc < 0)
+		return rc;
+ 	chip->debug_level = data;
+ 	return count;
+}
+
+#define WAEE_PLAY_RATE_US_LOW    4878  // 205HZ
+#define WAEE_PLAY_RATE_US_NORMAL 4555  // 220HZ
+#define WAEE_PLAY_RATE_US_HIGH   4255  // 235HZ
+
+static int qpnp_haptics_auto_config_rate(struct hap_chip *chip, int time_ms)
+{
+	 u16 wave_play_rate_us,play_rate;
+    int rc;
+    wave_play_rate_us =0;
+
+    play_rate =0;
+
+    if (!chip->lra_auto_mode)
+		return false;
+
+	/* For now, this is for LRA only */
+	if (chip->act_type == HAP_ERM)
+		return 0;
+
+    //set play rate us 205hz
+    if(time_ms <100 && chip->wave_play_rate_us  <=WAEE_PLAY_RATE_US_LOW )
+    {
+        wave_play_rate_us = WAEE_PLAY_RATE_US_LOW;
+        play_rate = wave_play_rate_us / HAP_RATE_CFG_STEP_US;
+        hap_bug_if(chip->debug_level,"set WAEE_PLAY_RATE_US_LOW\n");
+    }
+    //set play rate us 220hz
+    else if ((time_ms >100 &&  time_ms <600) && chip->wave_play_rate_us <=WAEE_PLAY_RATE_US_NORMAL)
+    {
+       wave_play_rate_us = WAEE_PLAY_RATE_US_NORMAL;
+       play_rate = wave_play_rate_us / HAP_RATE_CFG_STEP_US;
+       hap_bug_if(chip->debug_level,"set WAEE_PLAY_RATE_US_NORMAL\n");
+    }
+    //set play rate us 235hz
+    else
+    {
+       play_rate = chip->wave_play_rate_us / HAP_RATE_CFG_STEP_US;
+       hap_bug_if(chip->debug_level,"set WAEE_PLAY_RATE_US_NORMAL\n");
+    }
+
+
+    rc = qpnp_haptics_update_rate_cfg(chip, play_rate);
+
+    hap_bug_if(chip->debug_level,"time_us:%d ms [wave_play_rate_us:%d, %d,0x%x],play_rate:%x\n",
+            time_ms,chip->wave_play_rate_us ,wave_play_rate_us,wave_play_rate_us, play_rate);
+
+    return rc;
+
+}
+#endif
 static ssize_t qpnp_haptics_show_duration(struct device *dev,
 		struct device_attribute *attr, char *buf)
 {
@@ -1472,17 +1626,36 @@ static ssize_t qpnp_haptics_store_duration(struct device *dev,
 	struct hap_chip *chip = container_of(cdev, struct hap_chip, cdev);
 	u32 val;
 	int rc;
+#ifdef CONFIG_FEATURE_ZTEMT_HAPTIC_VIBRATOR
+	ktime_t time_rem;
+	s64 time_us = 0;
+#endif
 
 	rc = kstrtouint(buf, 0, &val);
 	if (rc < 0)
 		return rc;
 
 	/* setting 0 on duration is NOP for now */
-	if (val <= 0)
+	if (val < 0)
 		return count;
+#ifdef CONFIG_FEATURE_ZTEMT_HAPTIC_VIBRATOR
+	if(0 != val)
+	{
+		val = val +chip->ztemt_vibrator_ms;
 
+		if (hrtimer_active(&chip->stop_timer)) {
+			time_rem = hrtimer_get_remaining(&chip->stop_timer);
+			time_us = ktime_to_us(time_rem);
+		}
+		hap_info("time_remaining time_us:%lld ms\n", time_us / 1000);
+        qpnp_haptics_auto_config_rate(chip,val);
+	}
+#endif
 	if (val > chip->max_play_time_ms)
-		return -EINVAL;
+	{
+		//return -EINVAL;
+		val = chip->max_play_time_ms;
+	}
 
 	mutex_lock(&chip->param_lock);
 	rc = qpnp_haptics_auto_mode_config(chip, val);
@@ -1491,7 +1664,11 @@ static ssize_t qpnp_haptics_store_duration(struct device *dev,
 		mutex_unlock(&chip->param_lock);
 		return rc;
 	}
-
+#ifdef CONFIG_FEATURE_ZTEMT_HAPTIC_VIBRATOR
+	hap_info("play_time_ms:%d ztemt_vibrator_ms:%d \n",chip->play_time_ms,chip->ztemt_vibrator_ms);
+#else
+	hap_info("play_time_ms:%d \n",chip->play_time_ms);
+#endif
 	chip->play_time_ms = val;
 	mutex_unlock(&chip->param_lock);
 
@@ -1800,6 +1977,9 @@ static ssize_t qpnp_haptics_store_lra_auto_mode(struct device *dev,
 
 static struct device_attribute qpnp_haptics_attrs[] = {
 	__ATTR(state, 0664, qpnp_haptics_show_state, qpnp_haptics_store_state),
+ #ifdef CONFIG_FEATURE_ZTEMT_HAPTIC_VIBRATOR
+    __ATTR(debug, 0664, qpnp_haptics_show_debug, qpnp_haptics_store_debug),
+ #endif
 	__ATTR(duration, 0664, qpnp_haptics_show_duration,
 		qpnp_haptics_store_duration),
 	__ATTR(activate, 0664, qpnp_haptics_show_activate,
@@ -1912,6 +2092,12 @@ static int qpnp_haptics_config(struct hap_chip *chip)
 		pr_debug("Drive period code max limit %x min limit %x\n",
 			chip->drive_period_code_max_limit,
 			chip->drive_period_code_min_limit);
+#ifdef CONFIG_FEATURE_ZTEMT_HAPTIC_VIBRATOR
+        pr_info("play_rate:%x wave_play_rate_us:%d Drive period code max limit %x min limit %x\n",
+            play_rate,chip->wave_play_rate_us,
+			chip->drive_period_code_max_limit,
+			chip->drive_period_code_min_limit);
+#endif
 	}
 
 	rc = qpnp_haptics_brake_config(chip, NULL);
@@ -2145,7 +2331,17 @@ static int qpnp_haptics_parse_dt(struct hap_chip *chip)
 		pr_err("Unable to get sc irq\n");
 		return chip->sc_irq;
 	}
-
+#ifdef CONFIG_FEATURE_ZTEMT_HAPTIC_VIBRATOR
+	chip->ztemt_vibrator_ms = 0;
+	rc = of_property_read_u32(node,"qcom,ztemt_vibrator_ms",&temp);
+	if (!rc) {
+		chip->ztemt_vibrator_ms = temp;
+	} else if (rc != -EINVAL) {
+		pr_err( "Unable to read ztemt_vibrator_ms\n");
+		return rc;
+	}
+	hap_info("nubia ztemt_vibrator_ms:%d\n",temp);
+#endif
 	chip->act_type = HAP_LRA;
 	rc = of_property_read_u32(node, "qcom,actuator-type", &temp);
 	if (!rc) {
@@ -2155,7 +2351,9 @@ static int qpnp_haptics_parse_dt(struct hap_chip *chip)
 		}
 		chip->act_type = temp;
 	}
-
+#ifdef CONFIG_FEATURE_ZTEMT_HAPTIC_VIBRATOR
+	hap_info("nubia chip->act_type:%d\n",chip->act_type);
+#endif
 	chip->lra_auto_mode = of_property_read_bool(node, "qcom,lra-auto-mode");
 
 	rc = of_property_read_string(node, "qcom,play-mode", &temp_str);
@@ -2181,6 +2379,10 @@ static int qpnp_haptics_parse_dt(struct hap_chip *chip)
 			return rc;
 		}
 	}
+
+#ifdef CONFIG_FEATURE_ZTEMT_HAPTIC_VIBRATOR
+	hap_info("chip->play_mode:%s\n",temp_str);
+#endif
 
 	chip->max_play_time_ms = HAP_MAX_PLAY_TIME_MS;
 	rc = of_property_read_u32(node, "qcom,max-play-time-ms", &temp);
@@ -2479,7 +2681,9 @@ static int qpnp_haptics_probe(struct platform_device *pdev)
 			goto sysfs_fail;
 		}
 	}
-
+#ifdef CONFIG_FEATURE_ZTEMT_HAPTIC_VIBRATOR
+	hap_info("probe ok debug_level:%d \n",chip->debug_level);
+#endif
 	return 0;
 
 sysfs_fail:

@@ -530,9 +530,15 @@ static int pmic_gpio_config_set(struct pinctrl_dev *pctldev, unsigned int pin,
 			pad->power_source = arg;
 			break;
 		case PIN_CONFIG_INPUT_ENABLE:
+			#if defined(CONFIG_NEO_DIRECT_CHARGE_SUPPORT)
+				pad->output_enabled =false;
+			#endif
 			pad->input_enabled = arg ? true : false;
 			break;
 		case PIN_CONFIG_OUTPUT_ENABLE:
+			#if defined(CONFIG_NEO_DIRECT_CHARGE_SUPPORT)
+				pad->input_enabled  =  false;
+			#endif
 			pad->output_enabled = arg ? true : false;
 			break;
 		case PIN_CONFIG_OUTPUT:

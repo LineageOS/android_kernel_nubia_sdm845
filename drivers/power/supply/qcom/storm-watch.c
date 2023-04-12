@@ -65,6 +65,8 @@ void reset_storm_count(struct storm_watch *data)
 	mutex_unlock(&data->storm_lock);
 }
 
+#if defined(CONFIG_NUBIA_CHARGE_FEATURE)
+#else
 void update_storm_count(struct storm_watch *data, int max_count)
 {
 	if (!data)
@@ -74,3 +76,4 @@ void update_storm_count(struct storm_watch *data, int max_count)
 	data->max_storm_count = max_count;
 	mutex_unlock(&data->storm_lock);
 }
+#endif

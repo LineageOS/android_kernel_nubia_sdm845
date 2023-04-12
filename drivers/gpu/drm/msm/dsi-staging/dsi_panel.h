@@ -106,6 +106,9 @@ struct dsi_backlight_config {
 	u32 bl_level;
 	u32 bl_scale;
 	u32 bl_scale_ad;
+#ifdef CONFIG_NUBIA_LCD_BACKLIGHT_CURVE
+        uint32_t backlight_curve[256];
+#endif
 
 	int en_gpio;
 	/* PWM params */
@@ -124,16 +127,41 @@ struct dsi_reset_seq {
 	u32 sleep_ms;
 };
 
+#ifdef CONFIG_NUBIA_SWITCH_LCD
+struct dsi_switch_panel_config {
+	int sub_lcd_reset_gpio;
+	int lcd_switch_en_gpio;
+	int lcd_switch_gpio;
+	int sub_lcd_power_1p8_gpio;
+	int sub_tp_reset_gpio;
+	int sub_lcd_fd_gpio;
+};
+#endif
+
 struct dsi_panel_reset_config {
 	struct dsi_reset_seq *sequence;
 	u32 count;
 
 	int reset_gpio;
+#ifdef CONFIG_NUBIA_SWITCH_LCD
+	int sub_tp_reset_gpio;
+	int sub_lcd_reset_gpio;
+	int sub_lcd_fd_gpio;
+#endif
 	int disp_en_gpio;
 	int lcd_mode_sel_gpio;
 	u32 mode_sel_state;
 };
-
+#ifdef CONFIG_NUBIA_SWITCH_LCD
+enum dsi_panel_state {
+	DISPLAY_PRIMARY,
+	DISPLAY_SECOND,
+	DISPLAY_POST_PRIMARY,
+	DISPLAY_POST_SECOND,
+	DISPLAY_ONLY_PRIMARY,
+	DISPLAY_STATE_MAX
+};
+#endif
 enum esd_check_status_mode {
 	ESD_MODE_REG_READ,
 	ESD_MODE_SW_BTA,
@@ -196,7 +224,13 @@ struct dsi_panel {
 	u32 num_timing_nodes;
 
 	struct dsi_regulator_info power_info;
+#ifdef CONFIG_NUBIA_SWITCH_LCD
+	struct dsi_regulator_info sub_panel_power_info;
+#endif
 	struct dsi_backlight_config bl_config;
+#ifdef CONFIG_NUBIA_SWITCH_LCD
+	struct dsi_switch_panel_config switch_config;
+#endif
 	struct dsi_panel_reset_config reset_config;
 	struct dsi_pinctrl_info pinctrl;
 	struct drm_panel_hdr_properties hdr_props;
@@ -308,6 +342,14 @@ int dsi_panel_switch(struct dsi_panel *panel);
 int dsi_panel_post_switch(struct dsi_panel *panel);
 
 void dsi_dsc_pclk_param_calc(struct msm_display_dsc_info *dsc, int intf_width);
+#ifdef CONFIG_NUBIA_LCD_DISP_PREFERENCE
+int nubia_dsi_panel_cabc(struct dsi_panel *panel, uint32_t cabc_modes);
+#endif
+
+#ifdef CONFIG_NUBIA_SWITCH_LCD
+int nubia_dsi_panel_rgbw(struct dsi_panel *panel, uint32_t cabc_modes);
+int nubia_dsi_panel_aod(struct dsi_panel *panel, uint32_t state);
+#endif
 
 struct dsi_panel *dsi_panel_ext_bridge_get(struct device *parent,
 				struct device_node *of_node,

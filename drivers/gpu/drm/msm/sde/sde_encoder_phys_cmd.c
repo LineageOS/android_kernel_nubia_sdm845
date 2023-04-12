@@ -471,12 +471,16 @@ static int _sde_encoder_phys_cmd_handle_ppdone_timeout(
 {
 	struct sde_encoder_phys_cmd *cmd_enc =
 			to_sde_encoder_phys_cmd(phys_enc);
+	struct drm_connector*conn;
+	struct sde_connector*sde_conn;
 	u32 frame_event = SDE_ENCODER_FRAME_EVENT_ERROR
 				| SDE_ENCODER_FRAME_EVENT_SIGNAL_RELEASE_FENCE;
 
 	if (!phys_enc || !phys_enc->hw_pp || !phys_enc->hw_ctl)
 		return -EINVAL;
 
+	conn= phys_enc->connector;
+	sde_conn = to_sde_connector(conn);
 	cmd_enc->pp_timeout_report_cnt++;
 
 	if (sde_encoder_phys_cmd_is_master(phys_enc)) {
@@ -496,7 +500,8 @@ static int _sde_encoder_phys_cmd_handle_ppdone_timeout(
 			frame_event);
 
 	/* check if panel is still sending TE signal or not */
-	if (sde_connector_esd_status(phys_enc->connector))
+	if (sde_connector_esd_status(phys_enc->connector) ||
+		sde_conn->panel_dead)
 		goto exit;
 
 	if (cmd_enc->pp_timeout_report_cnt >= PP_TIMEOUT_MAX_TRIALS) {

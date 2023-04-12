@@ -23,6 +23,9 @@
 #include "dsi_display.h"
 #include "sde_crtc.h"
 #include "sde_rm.h"
+#ifdef CONFIG_NUBIA_LCD_DISP_PREFERENCE
+#include <linux/msm_drm_notify.h>
+#endif
 
 #define BL_NODE_NAME_SIZE 32
 
@@ -34,6 +37,15 @@
 
 #define SDE_ERROR_CONN(c, fmt, ...) SDE_ERROR("conn%d " fmt,\
 		(c) ? (c)->base.base.id : -1, ##__VA_ARGS__)
+
+#ifdef CONFIG_NUBIA_LCD_DISP_PREFERENCE
+bool dsi_panel_state_enable = true;
+#endif
+
+#ifdef CONFIG_NUBIA_SWITCH_LCD
+extern  int lcd_states;
+#endif
+
 static u32 dither_matrix[DITHER_MATRIX_SZ] = {
 	15, 7, 13, 5, 3, 11, 1, 9, 12, 4, 14, 6, 0, 8, 2, 10
 };
@@ -64,6 +76,35 @@ static const struct drm_prop_enum_list e_power_mode[] = {
 	{SDE_MODE_DPMS_OFF,	"OFF"},
 };
 
+#ifdef CONFIG_NUBIA_LCD_BACKLIGHT_CURVE
+int nubia_backlight_covert(struct dsi_display *display,
+                                      int value)
+{
+        u32 bl_lvl;
+
+        if(!display){
+                return -EINVAL;
+        }
+
+        pr_debug("before nubia backlight, value = %d\n",value);
+        if(display->panel->bl_config.backlight_curve[0] == 0 && value<256 && value>=0 \
+                && display->panel->bl_config.brightness_max_level < 256){
+                bl_lvl = display->panel->bl_config.backlight_curve[value];
+        }else{
+                if(value > 0){
+                        bl_lvl =value * (display->panel->bl_config.bl_max_level -display->panel->bl_config.bl_min_level);
+                        do_div(bl_lvl,display->panel->bl_config.brightness_max_level);
+                        bl_lvl =value *bl_lvl;
+                        do_div(bl_lvl,display->panel->bl_config.brightness_max_level);
+                        bl_lvl += display->panel->bl_config.bl_min_level;
+                }else{
+                        bl_lvl =0;
+                }
+        }
+        pr_debug("after nubia backlight, value = %d\n",bl_lvl);
+        return bl_lvl;
+}
+#endif
 static int sde_backlight_device_update_status(struct backlight_device *bd)
 {
 	int brightness;
@@ -71,24 +112,33 @@ static int sde_backlight_device_update_status(struct backlight_device *bd)
 	struct sde_connector *c_conn;
 	int bl_lvl;
 	struct drm_event event;
-	int rc = 0;
-
+	static int last_level = 0;
+	int ret = 0;
 	brightness = bd->props.brightness;
 
 	if ((bd->props.power != FB_BLANK_UNBLANK) ||
 			(bd->props.state & BL_CORE_FBBLANK) ||
 			(bd->props.state & BL_CORE_SUSPENDED))
 		brightness = 0;
+#ifdef CONFIG_NUBIA_LCD_DISP_PREFERENCE
+	if ((dsi_panel_state_enable == true) && (brightness != 0) ) {
+		dsi_panel_state_enable = false;
+		//pr_err("lcd screen on +++\n");
+		dsi_panel_notifier(FB_EARLY_EVENT_BLANK_FP, FB_BLANK_UNBLANK_FP);
+	}
+#endif
 
 	c_conn = bl_get_data(bd);
 	display = (struct dsi_display *) c_conn->display;
-	if (brightness > display->panel->bl_config.bl_max_level)
-		brightness = display->panel->bl_config.bl_max_level;
-
+	if (brightness > display->panel->bl_config.brightness_max_level)
+		brightness = display->panel->bl_config.brightness_max_level;
+#ifdef CONFIG_NUBIA_LCD_BACKLIGHT_CURVE
+	bl_lvl = nubia_backlight_covert(display,brightness);
+#else
 	/* map UI brightness into driver backlight level with rounding */
 	bl_lvl = mult_frac(brightness, display->panel->bl_config.bl_max_level,
 			display->panel->bl_config.brightness_max_level);
-
+#endif
 	if (!bl_lvl && brightness)
 		bl_lvl = 1;
 
@@ -103,11 +153,26 @@ static int sde_backlight_device_update_status(struct backlight_device *bd)
 		event.length = sizeof(u32);
 		msm_mode_object_event_notify(&c_conn->base.base,
 				c_conn->base.dev, &event, (u8 *)&brightness);
-		rc = c_conn->ops.set_backlight(c_conn->display, bl_lvl);
+	if(last_level ==0){
+#ifdef CONFIG_NUBIA_SWITCH_LCD
+		usleep_range(45000,45000);
+#else
+		msleep(45);
+#endif
+		}
+		if(bl_lvl==0 || last_level==0 ){
+			pr_err("set bl level %d \n",bl_lvl);
+		}
+		pr_err("set bl level %d \n",bl_lvl);
+		ret = c_conn->ops.set_backlight(c_conn->display, bl_lvl);
 		c_conn->unset_bl_level = 0;
+		if(ret){
+			pr_err("[test] set_backlight error ret = %d \n",ret);
+		}
+		last_level = bl_lvl;
 	}
 
-	return rc;
+	return 0;
 }
 
 static int sde_backlight_device_get_brightness(struct backlight_device *bd)
@@ -424,6 +489,13 @@ void sde_connector_schedule_status_work(struct drm_connector *connector,
 	if (!c_conn)
 		return;
 
+#ifdef CONFIG_NUBIA_SWITCH_LCD
+	if((!((lcd_states == DISPLAY_PRIMARY)||(lcd_states == DISPLAY_ONLY_PRIMARY)))&&(en)){
+		pr_err("jbc It is not in primary panel state, skip esd check enable\n");
+		return;
+	}
+#endif
+
 	/* Return if there is no change in ESD status check condition */
 	if (en == c_conn->esd_status_check)
 		return;
@@ -650,6 +722,13 @@ void sde_connector_helper_bridge_disable(struct drm_connector *connector)
 
 	if (!connector)
 		return;
+#ifdef CONFIG_NUBIA_LCD_DISP_PREFERENCE
+		if (dsi_panel_state_enable == false) {
+			dsi_panel_state_enable = true;
+			//pr_err("lcd screen off ---\n");
+			dsi_panel_notifier(FB_EARLY_EVENT_BLANK_FP, FB_BLANK_POWERDOWN_FP);
+		}
+#endif
 
 	rc = _sde_connector_update_dirty_properties(connector);
 	if (rc) {
@@ -679,6 +758,9 @@ void sde_connector_helper_bridge_enable(struct drm_connector *connector)
 	if (!connector)
 		return;
 
+#ifdef CONFIG_NUBIA_LCD_DISP_PREFERENCE
+		dsi_panel_state_enable = true;
+#endif
 	c_conn = to_sde_connector(connector);
 	display = (struct dsi_display *) c_conn->display;
 
@@ -1900,6 +1982,12 @@ int sde_connector_esd_status(struct drm_connector *conn)
 {
 	struct sde_connector *sde_conn = NULL;
 	int ret = 0;
+#ifdef CONFIG_NUBIA_SWITCH_LCD
+	if(!((lcd_states == DISPLAY_PRIMARY) || (lcd_states == DISPLAY_ONLY_PRIMARY))) {
+		pr_err("lcd_states=%d exit sde_connector_esd_status\n",lcd_states);
+		return ret;
+	}
+#endif
 
 	if (!conn)
 		return ret;
@@ -1910,6 +1998,9 @@ int sde_connector_esd_status(struct drm_connector *conn)
 
 	/* protect this call with ESD status check call */
 	mutex_lock(&sde_conn->lock);
+#ifdef CONFIG_NUBIA_SWITCH_LCD
+	pr_err("lcd_states=%d,st=%d\n",lcd_states,sde_conn->esd_status_check);
+#endif
 	ret = sde_conn->ops.check_status(sde_conn->display, true);
 	mutex_unlock(&sde_conn->lock);
 
@@ -1932,6 +2023,12 @@ static void sde_connector_check_status_work(struct work_struct *work)
 	struct sde_connector *conn;
 	int rc = 0;
 
+#ifdef CONFIG_NUBIA_SWITCH_LCD
+	if(!((lcd_states == DISPLAY_PRIMARY) || (lcd_states == DISPLAY_ONLY_PRIMARY))) {
+		pr_err("It is not in primary panel state, skip esd check\n");
+		return;
+	}
+#endif
 	conn = container_of(to_delayed_work(work),
 			struct sde_connector, status_work);
 	if (!conn) {
@@ -2410,6 +2507,12 @@ int sde_connector_register_custom_event(struct sde_kms *kms,
 	case DRM_EVENT_PANEL_DEAD:
 		ret = 0;
 		break;
+#ifdef CONFIG_NUBIA_SWITCH_LCD
+	case DRM_EVENT_PANEL_SWITCH_COMPLETE:
+
+		ret = 0;
+		break;
+#endif
 	default:
 		break;
 	}

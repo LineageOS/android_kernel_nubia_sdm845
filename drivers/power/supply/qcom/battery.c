@@ -109,6 +109,13 @@ enum {
 static int debug_mask;
 module_param_named(debug_mask, debug_mask, int, 0600);
 
+#if defined(CONFIG_NUBIA_CHARGE_FEATURE)
+#define pl_dbg(chip, reason, fmt, ...)				\
+	do {								\
+		if (debug_mask & (reason))				\
+			pr_info(fmt, ##__VA_ARGS__);	\
+	} while (0)
+#else
 #define pl_dbg(chip, reason, fmt, ...)				\
 	do {								\
 		if (debug_mask & (reason))				\
@@ -116,6 +123,7 @@ module_param_named(debug_mask, debug_mask, int, 0600);
 		else							\
 			pr_debug(fmt, ##__VA_ARGS__);		\
 	} while (0)
+#endif
 
 #define IS_USBIN(mode)	((mode == POWER_SUPPLY_PL_USBIN_USBIN) \
 			|| (mode == POWER_SUPPLY_PL_USBIN_USBIN_EXT))
@@ -415,6 +423,9 @@ static struct class_attribute pl_attributes[] = {
  *  FCC  *
  **********/
 #define EFFICIENCY_PCT	80
+#if defined(CONFIG_NUBIA_CHARGE_FEATURE)
+#define MIN_SPLIT_CHANGE_CURRENT_UA		300000
+#endif
 #define FCC_STEP_SIZE_UA 100000
 #define FCC_STEP_UPDATE_DELAY_MS 1000
 #define STEP_UP 1
@@ -465,10 +476,22 @@ static void get_fcc_split(struct pl_data *chip, int total_ua,
 	 * through main charger's BATFET, keep the main charger's FCC
 	 * to the votable result.
 	 */
+#if defined(CONFIG_NUBIA_CHARGE_FEATURE)
+	*slave_ua = min(*slave_ua, total_ua - MIN_SPLIT_CHANGE_CURRENT_UA);
+	if (chip->pl_batfet_mode == POWER_SUPPLY_PL_STACKED_BATFET)
+		*master_ua = max(MIN_SPLIT_CHANGE_CURRENT_UA, total_ua);
+	else
+		*master_ua = max(MIN_SPLIT_CHANGE_CURRENT_UA, total_ua - *slave_ua);
+#else
 	if (chip->pl_batfet_mode == POWER_SUPPLY_PL_STACKED_BATFET)
 		*master_ua = max(0, total_ua);
 	else
 		*master_ua = max(0, total_ua - *slave_ua);
+#endif
+
+	#if defined(CONFIG_NUBIA_CHARGE_FEATURE) 
+	//pr_err("NEO:slave_pct:%d,total_ua:%d,master_ua:%d,slave_ua:%d\n",chip->slave_pct,total_ua,*master_ua,*slave_ua);
+	#endif
 }
 
 static void get_fcc_stepper_params(struct pl_data *chip, int main_fcc_ua,
@@ -614,8 +637,14 @@ static int pl_fcc_vote_callback(struct votable *votable, void *data,
 		return 0;
 
 	if (chip->pl_mode != POWER_SUPPLY_PL_NONE) {
+		#if defined(CONFIG_NUBIA_CHARGE_FEATURE)
+		if(total_fcc_ua >= MIN_SPLIT_CHANGE_CURRENT_UA)
 		get_fcc_split(chip, total_fcc_ua, &master_fcc_ua,
 				&slave_fcc_ua);
+		#else
+		get_fcc_split(chip, total_fcc_ua, &master_fcc_ua,
+				&slave_fcc_ua);
+		#endif
 
 		if (slave_fcc_ua > MINIMUM_PARALLEL_FCC_UA) {
 			vote(chip->pl_disable_votable, PL_FCC_LOW_VOTER,

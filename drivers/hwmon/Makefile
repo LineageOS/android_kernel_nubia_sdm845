@@ -169,6 +169,9 @@ obj-$(CONFIG_SENSORS_XGENE)	+= xgene-hwmon.o
 obj-$(CONFIG_SENSORS_QPNP_ADC_VOLTAGE)	+= qpnp-adc-voltage.o qpnp-adc-common.o
 obj-$(CONFIG_SENSORS_QPNP_ADC_CURRENT)	+= qpnp-adc-current.o qpnp-adc-common.o
 
+################################################# NUBIA SENSOR START
+obj-$(CONFIG_NUBIA_SENSORS)			+= nubia_sensors/
+################################################# NUBIA SENSOR END
 obj-$(CONFIG_PMBUS)		+= pmbus/
 
 ccflags-$(CONFIG_HWMON_DEBUG_CHIP) := -DDEBUG

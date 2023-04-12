@@ -21,10 +21,15 @@
 #include "sde_connector.h"
 #include "dsi_drm.h"
 #include "sde_trace.h"
+#ifdef CONFIG_NUBIA_SWITCH_LCD
+#include <linux/msm_drm_notify.h>
+#endif
 
 #define to_dsi_bridge(x)     container_of((x), struct dsi_bridge, base)
 #define to_dsi_state(x)      container_of((x), struct dsi_connector_state, base)
-
+#ifdef CONFIG_NUBIA_SWITCH_LCD
+extern  int lcd_states;
+#endif
 static void convert_to_dsi_mode(const struct drm_display_mode *drm_mode,
 				struct dsi_display_mode *dsi_mode)
 {
@@ -220,6 +225,24 @@ static void dsi_bridge_enable(struct drm_bridge *bridge)
 
 	if (display && display->drm_conn)
 		sde_connector_helper_bridge_enable(display->drm_conn);
+#ifdef CONFIG_NUBIA_SWITCH_LCD
+	if(lcd_states == DISPLAY_POST_PRIMARY){
+		lcd_states = DISPLAY_PRIMARY;
+	     sde_connector_schedule_status_work(display->drm_conn, true);
+         pr_err("jbc switch to primary panel completed lcd_states = %d %s\n",lcd_states,__func__);
+	} else if (lcd_states == DISPLAY_POST_SECOND) {
+		lcd_states = DISPLAY_SECOND;
+		pr_err("jbc switch to second panel completed lcd_states =%d %s\n",lcd_states,__func__);
+	} else if ((lcd_states == DISPLAY_PRIMARY)||(lcd_states == DISPLAY_SECOND)){
+		pr_err("jbc lcd_states is in primary or second nothing to do %d %s\n",lcd_states,__func__);
+		dsi_panel_notifier(FB_EARLY_EVENT_BLANK_FP,FB_BLANK_UNBLANK_FP);
+	} else if (lcd_states == DISPLAY_ONLY_PRIMARY){
+	     sde_connector_schedule_status_work(display->drm_conn, true);
+         pr_err("jbc switch to primary panel completed lcd_states = %d %s\n",lcd_states,__func__);
+	     dsi_panel_notifier(FB_EARLY_EVENT_BLANK_FP,FB_BLANK_UNBLANK_FP);
+	} else if (lcd_states == DISPLAY_STATE_MAX)
+		pr_err("lcd_states is not correct %d %s\n",lcd_states,__func__);
+#endif
 }
 
 static void dsi_bridge_disable(struct drm_bridge *bridge)
@@ -242,6 +265,9 @@ static void dsi_bridge_disable(struct drm_bridge *bridge)
 		pr_err("[%d] DSI display pre disable failed, rc=%d\n",
 		       c_bridge->id, rc);
 	}
+#ifdef CONFIG_NUBIA_SWITCH_LCD
+	 dsi_panel_notifier(FB_EARLY_EVENT_BLANK_FP,FB_BLANK_POWERDOWN_FP);
+#endif
 }
 
 static void dsi_bridge_post_disable(struct drm_bridge *bridge)
@@ -288,6 +314,10 @@ static void dsi_bridge_mode_set(struct drm_bridge *bridge,
 
 	memset(&(c_bridge->dsi_mode), 0x0, sizeof(struct dsi_display_mode));
 	convert_to_dsi_mode(adjusted_mode, &(c_bridge->dsi_mode));
+
+#ifdef CONFIG_NUBIA_SWITCH_LCD
+	sde_connector_schedule_status_work(c_bridge->display->drm_conn, false);
+#endif
 
 	/* restore bit_clk_rate also for dynamic clk use cases */
 	c_bridge->dsi_mode.timing.clk_rate_hz =

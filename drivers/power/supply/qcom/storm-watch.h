@@ -37,5 +37,8 @@ struct storm_watch {
 
 bool is_storming(struct storm_watch *data);
 void reset_storm_count(struct storm_watch *data);
+#if defined(CONFIG_NUBIA_CHARGE_FEATURE)
+#else
 void update_storm_count(struct storm_watch *data, int max_count);
+#endif
 #endif

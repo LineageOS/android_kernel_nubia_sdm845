@@ -323,7 +323,8 @@ void kgsl_pwrctrl_buslevel_update(struct kgsl_device *device,
 
 	kgsl_bus_scale_request(device, buslevel);
 
-	kgsl_pwrctrl_vbif_update(ab);
+	if(pwr->devbw)
+		kgsl_pwrctrl_vbif_update(ab);
 }
 EXPORT_SYMBOL(kgsl_pwrctrl_buslevel_update);
 

@@ -34,6 +34,13 @@
 #include <linux/uaccess.h>
 #include <linux/pmic-voter.h>
 
+#if defined(CONFIG_NUBIA_CHARGE_FEATURE)
+#define fg_dbg(chip, reason, fmt, ...)			\
+	do {							\
+		if (*chip->debug_mask & (reason))		\
+			pr_info(fmt, ##__VA_ARGS__);	\
+	} while (0)
+#else
 #define fg_dbg(chip, reason, fmt, ...)			\
 	do {							\
 		if (*chip->debug_mask & (reason))		\
@@ -41,6 +48,7 @@
 		else						\
 			pr_debug(fmt, ##__VA_ARGS__);	\
 	} while (0)
+#endif
 
 #define is_between(left, right, value) \
 		(((left) >= (right) && (left) >= (value) \
@@ -444,6 +452,9 @@ struct fg_chip {
 	struct votable		*delta_bsoc_irq_en_votable;
 	struct votable		*batt_miss_irq_en_votable;
 	struct votable		*pl_disable_votable;
+	#if defined(CONFIG_NUBIA_CHARGE_FEATURE)
+	struct votable		*soc_monitor_work_votable;
+	#endif
 	struct fg_sram_param	*sp;
 	struct fg_dma_address	*addr_map;
 	struct fg_alg_flag	*alg_flags;
