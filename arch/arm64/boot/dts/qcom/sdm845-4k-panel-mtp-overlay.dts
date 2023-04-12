@@ -64,3 +64,5 @@
 &dsi_sharp_4k_dsc_video_display {
 	qcom,dsi-display-active;
 };
+
+#include NUBIA_OVERWRITE_DTSI_FILE

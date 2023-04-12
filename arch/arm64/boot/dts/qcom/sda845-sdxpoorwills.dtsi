@@ -46,7 +46,7 @@
 	       /delete-property/ bias-pull-down;
 	};
 };
-
+#if 0
 &led_flash_rear {
 	status = "disabled";
 };
@@ -70,7 +70,7 @@
 &eeprom_front {
 	status = "disabled";
 };
-
+#endif
 &wil6210 {
 	status = "disabled";
 };

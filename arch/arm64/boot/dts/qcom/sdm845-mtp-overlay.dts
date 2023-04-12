@@ -29,3 +29,4 @@
 	qcom,msm-id = <321 0x10000>;
 	qcom,board-id = <8 0>;
 };
+

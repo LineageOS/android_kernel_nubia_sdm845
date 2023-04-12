@@ -32,6 +32,7 @@
 #include "dsi-panel-test-dualmipi-oled-cmd.dtsi"
 #include <dt-bindings/clock/mdss-10nm-pll-clk.h>
 
+#include "../nubia/NX619J/nubia-jdi-td4310-1080-2160-5p99-video.dtsi"
 &soc {
 	dsi_panel_pwr_supply: dsi_panel_pwr_supply {
 		#address-cells = <1>;
@@ -550,6 +551,29 @@
 		};
 	};
 
+        dsi_jdi_td4310_1080_2160_5p99_video_display: qcom,dsi-display@20 {
+	        qcom,dsi-display-active;
+                compatible = "qcom,dsi-display";
+                label = "dsi_jdi_td4310_1080_2160_5p99_video_display";
+                qcom,display-type = "primary";
+
+                qcom,dsi-ctrl = <&mdss_dsi0>;
+                qcom,dsi-phy = <&mdss_dsi_phy0>;
+                clocks = <&mdss_dsi0_pll BYTECLK_MUX_0_CLK>,
+                        <&mdss_dsi0_pll PCLK_MUX_0_CLK>;
+                clock-names = "src_byte_clk", "src_pixel_clk";
+
+                pinctrl-names = "panel_active", "panel_suspend";
+                pinctrl-0 = <&sde_dsi_active &sde_te_active>;
+                pinctrl-1 = <&sde_dsi_suspend &sde_te_suspend>;
+                qcom,platform-reset-gpio = <&tlmm 6 0>;
+                qcom,panel-mode-gpio = <&tlmm 32 0>;
+
+                qcom,dsi-panel = <&dsi_jdi_td4310_1080_2160_5p99_video>;
+                vddio-supply = <&pm8998_l14>;
+                lab-supply = <&lab_regulator>;
+                ibb-supply = <&ibb_regulator>;
+        };
 	sde_wb: qcom,wb-display@0 {
 		compatible = "qcom,wb-display";
 		cell-index = <0>;
@@ -569,11 +593,12 @@
 	qcom,dp-usbpd-detection = <&pmi8998_pdphy>;
 	qcom,ext-disp = <&ext_disp>;
 
+	/* gpio43 and gpio 51 is used by audio,gio 39 and gpio 40 connect nothing for gpio request crash */
 	pinctrl-names = "mdss_dp_active", "mdss_dp_sleep";
 	pinctrl-0 = <&sde_dp_aux_active &sde_dp_usbplug_cc_active>;
 	pinctrl-1 = <&sde_dp_aux_suspend &sde_dp_usbplug_cc_suspend>;
-	qcom,aux-en-gpio = <&tlmm 43 0>;
-	qcom,aux-sel-gpio = <&tlmm 51 0>;
+	qcom,aux-en-gpio = <&tlmm 39 0>;
+	qcom,aux-sel-gpio = <&tlmm 40 0>;
 	qcom,usbplug-cc-gpio = <&tlmm 38 0>;
 };
 
@@ -932,4 +957,12 @@
 			qcom,default-topology-index = <0>;
 		};
 	};
+};
+&dsi_jdi_td4310_1080_2160_5p99_video{
+				qcom,panel-supply-entries = <&dsi_panel_pwr_supply>;
+
+                                qcom,mdss-dsi-bl-pmic-control-type = "bl_ctrl_wled";
+                                
+                                qcom,mdss-dsi-mode-sel-gpio-state = "single_port";
+                                qcom,platform-reset-gpio = <&tlmm 6 0>;
 };

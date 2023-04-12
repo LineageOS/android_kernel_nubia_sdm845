@@ -183,7 +183,7 @@
 			&pcie0_perst_default
 			&pcie0_wake_default>;
 
-		perst-gpio = <&tlmm 35 0>;
+		//perst-gpio = <&tlmm 35 0>;
 		wake-gpio = <&tlmm 37 0>;
 
 		gdsc-vdd-supply = <&pcie_0_gdsc>;
@@ -459,10 +459,10 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&pcie1_clkreq_default
 			&pcie1_perst_default
-			&pcie1_wake_default>;
+			/*&pcie1_wake_default*/>;
 
 		perst-gpio = <&tlmm 102 0>;
-		wake-gpio = <&tlmm 104 0>;
+		/*wake-gpio = <&tlmm 104 0>;*/
 
 		gdsc-vdd-supply = <&pcie_1_gdsc>;
 		vreg-1.8-supply = <&pm8998_l26>;
