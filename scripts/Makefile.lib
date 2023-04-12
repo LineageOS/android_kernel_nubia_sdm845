@@ -178,6 +178,15 @@ dtc_cpp_flags  = -Wp,-MD,$(depfile).pre.tmp -nostdinc                    \
 		 -I$(srctree)/arch/$(SRCARCH)/boot/dts/include           \
 		 -I$(srctree)/drivers/of/testcase-data                   \
 		 -undef -D__DTS__
+ 
+#nubia: Set nubia overwrite dtsi file
+dtc_cpp_flags += -DNUBIA_OVERWRITE_DTSI_FILE=\"../nubia/$(TARGET_PRODUCT)/head.dtsi\"
+
+#nubia: Set camera overwrite dtsi file
+dtc_cpp_flags += -DNUBIA_CAMERA_OVERWRITE_DTSI_FILE=\"../nubia/$(TARGET_PRODUCT)/camera.dtsi\"
+
+#nubia: Set audio overwrite dtsi file
+dtc_cpp_flags += -DNUBIA_AUDIO_OVERWRITE_DTSI_FILE=\"../nubia/$(TARGET_PRODUCT)/nubia-audio-lpass.dtsi\"
 
 # Finds the multi-part object the current object will be linked into
 modname-multi = $(sort $(foreach m,$(multi-used),\
