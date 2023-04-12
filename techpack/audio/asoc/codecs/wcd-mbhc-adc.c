@@ -9,6 +9,7 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  */
+//#define DEBUG
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/slab.h>
@@ -32,7 +33,7 @@
 
 #define WCD_MBHC_ADC_HS_THRESHOLD_MV    1700
 #define WCD_MBHC_ADC_HPH_THRESHOLD_MV   75
-#define WCD_MBHC_ADC_MICBIAS_MV         1800
+#define WCD_MBHC_ADC_MICBIAS_MV         2700
 #define WCD_MBHC_FAKE_INS_RETRY         4
 
 static int wcd_mbhc_get_micbias(struct wcd_mbhc *mbhc)
@@ -648,6 +649,12 @@ static void wcd_correct_swch_plug(struct work_struct *work)
 		plug_type = MBHC_PLUG_TYPE_GND_MIC_SWAP;
 		pr_debug("%s: cross connection found, Plug type %d\n",
 			 __func__, plug_type);
+	    if (mbhc->mbhc_cfg->msm_swap_set &&
+			mbhc->mbhc_cfg->msm_swap_set(codec,1,1)) {
+			pr_debug("%s: msm_swap_set to (1,1)\n", __func__);
+		}
+		pr_debug("%s: Plug found, plug type is %d\n",
+			 __func__, plug_type);
 		goto correct_plug_type;
 	}
 	/* Find plug type */
@@ -770,13 +777,19 @@ correct_plug_type:
 				 * if switch is toggled, check again,
 				 * otherwise report unsupported plug
 				 */
-				if (mbhc->mbhc_cfg->swap_gnd_mic &&
+				if (mbhc->mbhc_cfg->msm_swap_set &&
+					mbhc->mbhc_cfg->msm_swap_set(codec,1,1)) {
+					pr_debug("%s: msm_swap_set to (1,1)\n", __func__);
+					continue;
+				} 		
+				
+				/*if (mbhc->mbhc_cfg->swap_gnd_mic &&
 					mbhc->mbhc_cfg->swap_gnd_mic(codec,
 					true)) {
 					pr_debug("%s: US_EU gpio present,flip switch\n"
 						, __func__);
 					continue;
-				}
+				}*/
 			}
 		}
 

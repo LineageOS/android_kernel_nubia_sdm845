@@ -11254,6 +11254,15 @@ static const struct snd_kcontrol_new quat_mi2s_rx_port_mixer_controls[] = {
 	MSM_BACKEND_DAI_QUATERNARY_MI2S_RX,
 	MSM_BACKEND_DAI_SLIMBUS_8_TX, 1, 0, msm_routing_get_port_mixer,
 	msm_routing_put_port_mixer),
+	SOC_SINGLE_EXT("SLIM_6_RX", MSM_BACKEND_DAI_QUATERNARY_MI2S_RX,
+	MSM_BACKEND_DAI_SLIMBUS_6_RX, 1, 0, msm_routing_get_port_mixer,
+	msm_routing_put_port_mixer),
+	SOC_SINGLE_EXT("USB_RX", MSM_BACKEND_DAI_QUATERNARY_MI2S_RX,
+	MSM_BACKEND_DAI_USB_RX, 1, 0, msm_routing_get_port_mixer,
+	msm_routing_put_port_mixer),
+	SOC_SINGLE_EXT("SLIM_7_RX", MSM_BACKEND_DAI_QUATERNARY_MI2S_RX,
+	MSM_BACKEND_DAI_SLIMBUS_7_RX, 1, 0, msm_routing_get_port_mixer,
+	msm_routing_put_port_mixer),
 };
 
 static const struct snd_kcontrol_new quin_mi2s_rx_port_mixer_controls[] = {
@@ -16142,6 +16151,25 @@ static const struct snd_soc_dapm_route intercon[] = {
 	{"SEC_RX Audio Mixer", "MultiMedia16", "MM_DL16"},
 	{"SEC_I2S_RX", NULL, "SEC_RX Audio Mixer"},
 
+#if 1 //modified by nubia, for nxp hatpic
+	{"QUAT_MI2S_RX Audio Mixer", "MultiMedia1", "MM_DL1"},
+	{"QUAT_MI2S_RX Audio Mixer", "MultiMedia2", "MM_DL2"},
+	{"QUAT_MI2S_RX Audio Mixer", "MultiMedia3", "MM_DL3"},
+	{"QUAT_MI2S_RX Audio Mixer", "MultiMedia4", "MM_DL4"},
+	{"QUAT_MI2S_RX Audio Mixer", "MultiMedia5", "MM_DL5"},
+	{"QUAT_MI2S_RX Audio Mixer", "MultiMedia6", "MM_DL6"},
+	{"QUAT_MI2S_RX Audio Mixer", "MultiMedia7", "MM_DL7"},
+	{"QUAT_MI2S_RX Audio Mixer", "MultiMedia8", "MM_DL8"},
+	{"QUAT_MI2S_RX Audio Mixer", "MultiMedia10", "MM_DL10"},
+	{"QUAT_MI2S_RX Audio Mixer", "MultiMedia11", "MM_DL11"},
+	{"QUAT_MI2S_RX Audio Mixer", "MultiMedia12", "MM_DL12"},
+	{"QUAT_MI2S_RX Audio Mixer", "MultiMedia13", "MM_DL13"},
+	{"QUAT_MI2S_RX Audio Mixer", "MultiMedia14", "MM_DL14"},
+	{"QUAT_MI2S_RX Audio Mixer", "MultiMedia15", "MM_DL15"},
+	{"QUAT_MI2S_RX Audio Mixer", "MultiMedia16", "MM_DL16"},
+	{"QUAT_MI2S_RX", NULL, "QUAT_MI2S_RX Audio Mixer"},
+#endif //end
+
 	{"SLIMBUS_0_RX Audio Mixer", "MultiMedia1", "MM_DL1"},
 	{"SLIMBUS_0_RX Audio Mixer", "MultiMedia2", "MM_DL2"},
 	{"SLIMBUS_0_RX Audio Mixer", "MultiMedia3", "MM_DL3"},
@@ -16385,7 +16413,8 @@ static const struct snd_soc_dapm_route intercon[] = {
 	{"MI2S_RX Audio Mixer", "MultiMedia15", "MM_DL15"},
 	{"MI2S_RX Audio Mixer", "MultiMedia16", "MM_DL16"},
 	{"MI2S_RX", NULL, "MI2S_RX Audio Mixer"},
-
+	
+#if 0 //modified by nubia, for nxp hatpic
 	{"QUAT_MI2S_RX Audio Mixer", "MultiMedia1", "MM_DL1"},
 	{"QUAT_MI2S_RX Audio Mixer", "MultiMedia2", "MM_DL2"},
 	{"QUAT_MI2S_RX Audio Mixer", "MultiMedia3", "MM_DL3"},
@@ -16402,6 +16431,7 @@ static const struct snd_soc_dapm_route intercon[] = {
 	{"QUAT_MI2S_RX Audio Mixer", "MultiMedia15", "MM_DL15"},
 	{"QUAT_MI2S_RX Audio Mixer", "MultiMedia16", "MM_DL16"},
 	{"QUAT_MI2S_RX", NULL, "QUAT_MI2S_RX Audio Mixer"},
+#endif //end
 
 	{"TERT_MI2S_RX Audio Mixer", "MultiMedia1", "MM_DL1"},
 	{"TERT_MI2S_RX Audio Mixer", "MultiMedia2", "MM_DL2"},
@@ -18742,6 +18772,9 @@ static const struct snd_soc_dapm_route intercon[] = {
 	{"QUAT_MI2S_RX Port Mixer", "INTERNAL_FM_TX", "INT_FM_TX"},
 	{"QUAT_MI2S_RX Port Mixer", "AUX_PCM_UL_TX", "AUX_PCM_TX"},
 	{"QUAT_MI2S_RX Port Mixer", "SLIM_8_TX", "SLIMBUS_8_TX"},
+	{"QUAT_MI2S_RX Port Mixer", "SLIM_6_RX", "SLIMBUS_6_RX"},
+	{"QUAT_MI2S_RX Port Mixer", "SLIM_7_RX", "SLIMBUS_7_RX"},
+	{"QUAT_MI2S_RX Port Mixer", "USB_RX", "USB_AUDIO_RX"},
 	{"QUAT_MI2S_RX", NULL, "QUAT_MI2S_RX Port Mixer"},
 
 	{"QUIN_MI2S_RX Port Mixer", "PRI_MI2S_TX", "PRI_MI2S_TX"},

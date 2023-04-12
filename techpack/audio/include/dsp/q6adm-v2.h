@@ -129,6 +129,8 @@ int adm_get_lowlatency_copp_id(int port_id);
 
 int adm_set_multi_ch_map(char *channel_map, int path);
 
+void adm_change_multi_ch_map_state(int state);
+
 int adm_get_multi_ch_map(char *channel_map, int path);
 
 int adm_validate_and_get_port_index(int port_id);

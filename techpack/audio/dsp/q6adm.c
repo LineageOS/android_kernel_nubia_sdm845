@@ -1284,6 +1284,17 @@ int adm_set_multi_ch_map(char *channel_map, int path)
 	return 0;
 }
 
+void adm_change_multi_ch_map_state(int state)
+{
+	pr_debug("%s: change set_channel_map state to %d\n", __func__, state);
+	if(state) {
+		multi_ch_maps[ADM_MCH_MAP_IDX_PLAYBACK].set_channel_map = true;
+	} else {
+		multi_ch_maps[ADM_MCH_MAP_IDX_PLAYBACK].set_channel_map = false;
+	}
+}
+EXPORT_SYMBOL(adm_change_multi_ch_map_state);
+
 int adm_get_multi_ch_map(char *channel_map, int path)
 {
 	int idx;
@@ -2320,7 +2331,10 @@ int adm_arrange_mch_map(struct adm_cmd_device_open_v5 *open, int path,
 	default:
 		goto non_mch_path;
 	};
-	if ((open->dev_num_channel > 2) && multi_ch_maps[idx].set_channel_map) {
+	//modified by nubia for haptic 4 channel bug
+	//if ((open->dev_num_channel > 2) && multi_ch_maps[idx].set_channel_map) {
+	if ((open->dev_num_channel > 4) && multi_ch_maps[idx].set_channel_map) {
+		pr_err("%s:dev_num_channel is %d\n", __func__, open->dev_num_channel);
 		memcpy(open->dev_channel_mapping,
 			multi_ch_maps[idx].channel_mapping,
 			PCM_FORMAT_MAX_NUM_CHANNEL);

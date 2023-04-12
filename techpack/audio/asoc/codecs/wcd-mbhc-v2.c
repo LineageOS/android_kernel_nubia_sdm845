@@ -9,6 +9,7 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  */
+//#define DEBUG
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/slab.h>
@@ -879,6 +880,10 @@ static void wcd_mbhc_swch_irq_handler(struct wcd_mbhc *mbhc)
 
 	if ((mbhc->current_plug == MBHC_PLUG_TYPE_NONE) &&
 	    detection_type) {
+	       if (mbhc->mbhc_cfg->msm_swap_set){
+			pr_debug("%s: msm_swap_set to (0,0)\n", __func__);
+			mbhc->mbhc_cfg->msm_swap_set(codec,0,0);
+		}
 		/* Make sure MASTER_BIAS_CTL is enabled */
 		mbhc->mbhc_cb->mbhc_bias(codec, true);
 
@@ -959,6 +964,10 @@ static void wcd_mbhc_swch_irq_handler(struct wcd_mbhc *mbhc)
 		WCD_MBHC_REG_UPDATE_BITS(WCD_MBHC_ELECT_SCHMT_ISRC, 0);
 		mbhc->extn_cable_hph_rem = false;
 		wcd_mbhc_report_plug(mbhc, 0, jack_type);
+		if (mbhc->mbhc_cfg->msm_swap_set) {
+			pr_debug("%s: msm_swap_set to (0,1)\n", __func__);
+			mbhc->mbhc_cfg->msm_swap_set(codec,0,1);
+		}
 
 	} else if (!detection_type) {
 		/* Disable external voltage source to micbias if present */
@@ -1316,8 +1325,13 @@ static int wcd_mbhc_initialise(struct wcd_mbhc *mbhc)
 		WCD_MBHC_REG_UPDATE_BITS(WCD_MBHC_INSREM_DBNC, 6);
 	}
 
+#ifdef CONFIG_ZTEMT_AUDIO
+	/* Button Debounce set to 32ms */
+	WCD_MBHC_REG_UPDATE_BITS(WCD_MBHC_BTN_DBNC, 3);
+#else
 	/* Button Debounce set to 16ms */
 	WCD_MBHC_REG_UPDATE_BITS(WCD_MBHC_BTN_DBNC, 2);
+#endif
 
 	/* Enable micbias ramp */
 	if (mbhc->mbhc_cb->mbhc_micb_ramp_control)
@@ -1477,6 +1491,7 @@ static int wcd_mbhc_set_keycode(struct wcd_mbhc *mbhc)
 	return result;
 }
 
+#if 0
 static int wcd_mbhc_usb_c_analog_setup_gpios(struct wcd_mbhc *mbhc,
 					     bool active)
 {
@@ -1647,6 +1662,7 @@ static int wcd_mbhc_usb_c_analog_deinit(struct wcd_mbhc *mbhc)
 
 	return 0;
 }
+#endif
 
 static int wcd_mbhc_init_gpio(struct wcd_mbhc *mbhc,
 			      struct wcd_mbhc_config *mbhc_cfg,
@@ -1734,11 +1750,11 @@ int wcd_mbhc_start(struct wcd_mbhc *mbhc, struct wcd_mbhc_config *mbhc_cfg)
 		dev_dbg(mbhc->codec->dev, "%s: calling usb_c_analog_init\n",
 			__func__);
 		/* init PMI notifier */
-		rc = wcd_mbhc_usb_c_analog_init(mbhc);
+		/*rc = wcd_mbhc_usb_c_analog_init(mbhc);
 		if (rc) {
 			rc = EPROBE_DEFER;
 			goto err;
-		}
+		}*/
 	}
 
 	/* Set btn key code */
@@ -1810,7 +1826,7 @@ void wcd_mbhc_stop(struct wcd_mbhc *mbhc)
 	}
 
 	if (mbhc->mbhc_cfg->enable_usbc_analog) {
-		wcd_mbhc_usb_c_analog_deinit(mbhc);
+		//wcd_mbhc_usb_c_analog_deinit(mbhc);
 		/* free GPIOs */
 		if (config->usbc_en1_gpio > 0)
 			gpio_free(config->usbc_en1_gpio);

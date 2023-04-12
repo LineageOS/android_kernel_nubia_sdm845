@@ -141,10 +141,14 @@ do {                                                    \
 #define HS_DETECT_PLUG_TIME_MS (3 * 1000)
 #define SPECIAL_HS_DETECT_TIME_MS (2 * 1000)
 #define MBHC_BUTTON_PRESS_THRESHOLD_MIN 250
-#define GND_MIC_SWAP_THRESHOLD 4
+#define GND_MIC_SWAP_THRESHOLD 2 //modified by nubia for nubia typeC headset switch
 #define GND_MIC_USBC_SWAP_THRESHOLD 2
 #define WCD_FAKE_REMOVAL_MIN_PERIOD_MS 100
+#ifdef CONFIG_ZTEMT_AUDIO
+#define HS_VREF_MIN_VAL 1300
+#else
 #define HS_VREF_MIN_VAL 1400
+#endif
 #define FW_READ_ATTEMPTS 15
 #define FW_READ_TIMEOUT 4000000
 #define FAKE_REM_RETRY_ATTEMPTS 3
@@ -422,6 +426,7 @@ struct wcd_mbhc_config {
 	bool detect_extn_cable;
 	bool mono_stero_detection;
 	bool (*swap_gnd_mic)(struct snd_soc_codec *codec, bool active);
+	bool (*msm_swap_set)(struct snd_soc_codec *codec, int value1, int value2);
 	bool hs_ext_micbias;
 	bool gnd_det_en;
 	int key_code[WCD_MBHC_KEYCODE_NUM];
