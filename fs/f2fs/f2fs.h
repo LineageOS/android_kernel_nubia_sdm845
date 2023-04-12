@@ -188,6 +188,7 @@ enum {
 
 #define MAX_DISCARD_BLOCKS(sbi)		BLKS_PER_SEC(sbi)
 #define DEF_MAX_DISCARD_REQUEST		8	/* issue 8 discards per round */
+#define DEF_MAX_DISCARD_LEN		2048	/* Max. 8MB per discard */
 #define DEF_MIN_DISCARD_ISSUE_TIME	50	/* 50 ms, if exists */
 #define DEF_MID_DISCARD_ISSUE_TIME	500	/* 500 ms, if device busy */
 #define DEF_MAX_DISCARD_ISSUE_TIME	60000	/* 60 s, if no candidates */
@@ -1160,6 +1161,13 @@ enum fsync_mode {
 #define DUMMY_ENCRYPTION_ENABLED(sbi) (0)
 #endif
 
+#ifdef CONFIG_NUBIA_F2FS_TRIM_STAT
+#define NUBAI_F2FS_NO_TRIMED        0
+#define NUBAI_F2FS_TRIMING          1
+#define NUBAI_F2FS_TRIMED           2
+#define NUBIA_F2FS_EXIT_TRIM        9
+#endif
+
 struct f2fs_sb_info {
 	struct super_block *sb;			/* pointer to VFS super block */
 	struct proc_dir_entry *s_proc;		/* proc entry */
@@ -1343,6 +1351,9 @@ struct f2fs_sb_info {
 
 	/* Precomputed FS UUID checksum for seeding other checksums */
 	__u32 s_chksum_seed;
+#ifdef CONFIG_NUBIA_F2FS_TRIM_STAT
+    int trim_stat;        /*use for f2fs trim stats,no trimed,triming,trimed */
+#endif
 };
 
 struct f2fs_private_dio {

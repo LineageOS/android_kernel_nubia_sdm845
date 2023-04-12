@@ -100,7 +100,7 @@ static int gc_thread_func(void *data)
 			increase_sleep_time(gc_th, &wait_ms);
 do_gc:
 		stat_inc_bggc_count(sbi);
-
+        f2fs_msg(sbi->sb, KERN_WARNING, "BG GC count %d.",(sbi)->bg_gc);
 		/* if return value is not zero, no victim was selected */
 		if (f2fs_gc(sbi, test_opt(sbi, FORCE_FG_GC), true, NULL_SEGNO))
 			wait_ms = gc_th->no_gc_sleep_time;
@@ -1222,7 +1222,13 @@ skip:
 	blk_finish_plug(&plug);
 
 	stat_inc_call_count(sbi->stat_info);
-
+    f2fs_msg(sbi->sb, KERN_WARNING, "GC call count %d.", (sbi->stat_info)->call_count);
+    f2fs_msg(sbi->sb, KERN_WARNING, "Try to move %d blocks (BG: %d)\n", (sbi->stat_info)->tot_blks,
+				(sbi->stat_info)->bg_data_blks + (sbi->stat_info)->bg_node_blks);
+    f2fs_msg(sbi->sb, KERN_WARNING, "  - data blocks : %d (%d)\n", (sbi->stat_info)->data_blks,
+				(sbi->stat_info)->bg_data_blks);
+	f2fs_msg(sbi->sb, KERN_WARNING, "  - node blocks : %d (%d)\n", (sbi->stat_info)->node_blks,
+				(sbi->stat_info)->bg_node_blks);
 	return seg_freed;
 }
 
