@@ -82,4 +82,5 @@ endif
 obj-$(CONFIG_QRTR)		+= qrtr/
 obj-$(CONFIG_NET_NCSI)		+= ncsi/
 obj-$(CONFIG_RMNET_DATA) += rmnet_data/
+obj-y	+= cta_uid_hook/
 obj-$(CONFIG_IPC_ROUTER)	+= ipc_router/
