@@ -2782,7 +2782,7 @@ skip:
 			break;
 #ifdef CONFIG_NUBIA_F2FS_TRIM_STAT
         if(sbi->trim_stat == NUBIA_F2FS_EXIT_TRIM){
-            f2fs_msg(sbi->sb, KERN_WARNING, "input trim stat is %d, must exit!", sbi->trim_stat);
+            f2fs_warn(sbi, "input trim stat is %d, must exit!", sbi->trim_stat);
             break;
         }
 #endif
@@ -2819,7 +2819,7 @@ int f2fs_trim_fs(struct f2fs_sb_info *sbi, struct fstrim_range *range)
 	}
 #ifdef CONFIG_NUBIA_F2FS_TRIM_STAT
     sbi->trim_stat = NUBAI_F2FS_TRIMING;
-    f2fs_msg(sbi->sb, KERN_WARNING, "trimmed start, trim_stat is %d.", sbi->trim_stat);
+    f2fs_warn(sbi, "trimmed start, trim_stat is %d.", sbi->trim_stat);
 #endif
 
 	/* start/end segment number in main_area */
@@ -2867,7 +2867,7 @@ int f2fs_trim_fs(struct f2fs_sb_info *sbi, struct fstrim_range *range)
     #ifdef CONFIG_NUBIA_F2FS_TRIM_STAT
     /*set trim_stat is trimed */
     sbi->trim_stat = NUBAI_F2FS_TRIMED;
-    f2fs_msg(sbi->sb, KERN_WARNING, "trimmed is %lld, trim_stat is %d.",
+    f2fs_warn(sbi, "trimmed is %lld, trim_stat is %d.",
             range->len, sbi->trim_stat);
     #endif
 out:
