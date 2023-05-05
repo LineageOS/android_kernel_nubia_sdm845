@@ -194,7 +194,7 @@ static unsigned int get_next_freq(struct sugov_policy *sg_policy,
 
     switch (nubia_cpufreq_ctrl_value) {
         case 0:
-            freq = freq;
+            freq = (u32) freq;
             break;
         case 1:
              if(freq > 2000000) {
