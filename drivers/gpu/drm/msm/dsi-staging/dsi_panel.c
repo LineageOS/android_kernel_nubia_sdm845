@@ -768,115 +768,7 @@ static int dsi_panel_set_pinctrl_state(struct dsi_panel *panel, bool enable)
 
 	return rc;
 }
-
-static int dsi_panel_exd_enable(struct dsi_panel *panel)
-{
-	int rc = 0;
-	struct dsi_panel_exd_config *e_config = &panel->exd_config;
-
-	if (!e_config->display_1p8_en && !e_config->led_5v_en &&
-			!e_config->led_en1 && !e_config->led_en2 &&
-			!e_config->oenab && !e_config->selab &&
-			!e_config->switch_power)
-		return 0;
-
-	if (gpio_is_valid(e_config->display_1p8_en)) {
-		rc = gpio_direction_output(e_config->display_1p8_en, 0);
-		if (rc) {
-			pr_err("unable to set dir for disp_1p8_en rc:%d\n",
-				rc);
-			goto exit;
-		}
-		gpio_set_value(e_config->display_1p8_en, 1);
-	}
-
-	if (gpio_is_valid(e_config->switch_power)) {
-		rc = gpio_direction_output(e_config->switch_power, 0);
-		if (rc) {
-			pr_err("unable to set dir for switch_power rc:%d\n",
-				rc);
-			goto exit;
-		}
-		gpio_set_value(e_config->switch_power, 1);
-	}
-
-	if (gpio_is_valid(e_config->led_5v_en)) {
-		rc = gpio_direction_output(e_config->led_5v_en, 0);
-		if (rc) {
-			pr_err("unable to set dir for led_5v_en rc:%d\n", rc);
-			goto exit;
-		}
-		gpio_set_value(e_config->led_5v_en, 1);
-	}
-
-	if (gpio_is_valid(e_config->led_en1)) {
-		rc = gpio_direction_output(e_config->led_en1, 0);
-		if (rc) {
-			pr_err("unable to set dir for led_en1 rc:%d\n", rc);
-			goto exit;
-		}
-		gpio_set_value(e_config->led_en1, 1);
-	}
-
-	if (gpio_is_valid(e_config->led_en2)) {
-		rc = gpio_direction_output(e_config->led_en2, 0);
-		if (rc) {
-			pr_err("unable to set dir for led_en2 rc:%d\n", rc);
-			goto exit;
-		}
-		gpio_set_value(e_config->led_en2, 1);
-	}
-
-	if (gpio_is_valid(e_config->oenab)) {
-		rc = gpio_direction_output(e_config->oenab, 0);
-		if (rc) {
-			pr_err("unable to set dir for oenab rc:%d\n", rc);
-			goto exit;
-		}
-		gpio_set_value(e_config->oenab, 0);
-	}
-
-	if (gpio_is_valid(e_config->selab)) {
-		rc = gpio_direction_output(e_config->selab, 0);
-		if (rc) {
-			pr_err("unable to set dir for selab rc:%d\n", rc);
-			goto exit;
-		}
-		gpio_set_value(e_config->selab, 1);
-	}
-exit:
-	return rc;
-}
-
-static void dsi_panel_exd_disable(struct dsi_panel *panel)
-{
-	struct dsi_panel_exd_config *e_config = &panel->exd_config;
-
-	if (!e_config->display_1p8_en && !e_config->led_5v_en &&
-		!e_config->led_en1 && !e_config->led_en2 &&
-		!e_config->oenab && !e_config->selab &&
-		!e_config->switch_power)
-		return;
-
-	if (gpio_is_valid(e_config->display_1p8_en))
-		gpio_set_value(e_config->display_1p8_en, 0);
-	if (gpio_is_valid(e_config->led_5v_en))
-		gpio_set_value(e_config->led_5v_en, 0);
-	if (gpio_is_valid(e_config->led_en1))
-		gpio_set_value(e_config->led_en1, 0);
-	if (gpio_is_valid(e_config->led_en2))
-		gpio_set_value(e_config->led_en2, 0);
-	if (gpio_is_valid(e_config->oenab))
-		gpio_set_value(e_config->oenab, 1);
-	if (gpio_is_valid(e_config->selab))
-		gpio_set_value(e_config->selab, 0);
-	if (gpio_is_valid(e_config->switch_power))
-		gpio_set_value(e_config->switch_power, 0);
-}
-
-
 #ifdef CONFIG_NUBIA_SWITCH_LCD
-
 /* Change the state of the switch before the panel-power-on and the Send init cmds
 * Low is the Primary LCD ;
 * High is the Sub LCD;
@@ -909,7 +801,6 @@ static int dsi_panel_change_switch(struct dsi_panel *panel,bool state)
 	}
 	return rc;
 }
-
 #endif
 
 #ifdef CONFIG_NUBIA_SWITCH_LCD
@@ -1096,8 +987,6 @@ exit:
 static int dsi_panel_power_off(struct dsi_panel *panel)
 {
 	int rc = 0;
-
-	dsi_panel_exd_disable(panel);
 
 #ifdef CONFIG_NUBIA_SWITCH_LCD
 	if(switch_panel_res){
