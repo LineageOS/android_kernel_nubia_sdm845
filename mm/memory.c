@@ -352,6 +352,11 @@ static void tlb_remove_table_smp_sync(void *arg)
 	/* Simply deliver the interrupt */
 }
 
+void tlb_remove_table_sync_one(void)
+{
+	smp_call_function(tlb_remove_table_smp_sync, NULL, 1);
+}
+
 static void tlb_remove_table_one(void *table)
 {
 	/*
@@ -2260,6 +2265,10 @@ static int do_page_mkwrite(struct vm_area_struct *vma, struct page *page,
 	vmf.gfp_mask = __get_fault_gfp_mask(vma);
 	vmf.page = page;
 	vmf.cow_page = NULL;
+
+	if (vma->vm_file &&
+	    IS_SWAPFILE(vma->vm_file->f_mapping->host))
+		return VM_FAULT_SIGBUS;
 
 	ret = vma->vm_ops->page_mkwrite(vma, &vmf);
 	if (unlikely(ret & (VM_FAULT_ERROR | VM_FAULT_NOPAGE)))
