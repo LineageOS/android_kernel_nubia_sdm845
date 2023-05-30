@@ -41,6 +41,8 @@ if NUBIA_TOUCH
 source "drivers/nubia/touch/Kconfig"
 endif
 
+source "drivers/nubia/cy8c4014l_touchkey/Kconfig"
+
 endmenu
 
 # Nubia configuration options

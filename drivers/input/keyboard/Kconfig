@@ -17,12 +17,6 @@ config NUBIA_KEYBOARD_GAMESWITCH
         help
           Addr GameSwitchkey attr
 
-config NUBIA_CYPRESS_KEYBOARD_GAMEFIRE
-        tristate "Keypad NUBIA GameFire"
-        depends on KEYBOARD_GPIO
-        help
-          Addr GameSwitchkey attr
-
 config KEYBOARD_ADC
 	tristate "ADC Ladder Buttons"
 	depends on IIO
