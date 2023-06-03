@@ -103,3 +103,20 @@
 	   qcom,led-strings-list = [00 01 02];
        qcom,en-cabc;
 };
+
+&qupv3_se3_i2c {
+	tfa98xx@34 {
+		status = "ok";
+		compatible = "nxp,tfa98xx";
+		reg =<0x34>;
+		reset-gpio = <&tlmm 23 0x00>;
+		irq-gpio = <&tlmm 129 0x00>;
+	};
+	tfa98xx@35 {
+		status = "ok";
+		compatible = "nxp,tfa98xx";
+		reg =<0x35>;
+		reset-gpio = <&tlmm 24 0x00>;
+		irq-gpio = <&tlmm 128 0x00>;
+	};
+};

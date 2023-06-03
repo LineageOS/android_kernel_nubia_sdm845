@@ -5,6 +5,7 @@
 
 #include "others.dtsi"
 #include "neo-power.dtsi"
+#include "display.dtsi"
 #include "tp.dtsi"
 #include "finger.dtsi"
 #include "sensors.dtsi"

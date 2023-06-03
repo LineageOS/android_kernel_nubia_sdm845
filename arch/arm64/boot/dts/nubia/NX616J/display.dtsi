@@ -1,5 +1,5 @@
 
-#include "../nubia/NX616J/dsi-panel-himax-boe-1080x2280-cmd.dtsi"
+#include "dsi-panel-himax-boe-1080x2280-cmd.dtsi"
 
 &soc {
 	nubia_dsi_panel_pwr_supply: nubia_dsi_panel_pwr_supply {
