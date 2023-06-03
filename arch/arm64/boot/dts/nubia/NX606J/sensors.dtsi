@@ -1,0 +1,96 @@
+/*
+ * Copyright (c) 2015-2016, The Linux Foundation. All rights reserved.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 and
+ * only version 2 as published by the Free Software Foundation.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ */
+
+&qupv3_se10_i2c {
+	status = "ok";
+	rohm@38 {
+		compatible = "rohm,bh1745";
+		reg = <0x38>;
+		vdd-supply = <&pm8998_l19>;
+		vio-supply = <&pm8998_s4>;
+		bh1745,tp_moudle_count = <3>;
+		/*[module_id] [golden judge] r[0] r[1] g[0] g[1] b[0] b[1]*/
+		bh1745,cal_data0 = "0","700","4034","408","12867","13311","0","0",
+		/*[white judge] r[0] r[1] g[0] g[1] b[0] b[1]*/
+		"184","166","111","531","460","0","0",
+		/*[balck judge] r[0] r[1] g[0] g[1] b[0] b[1]*/
+		/*"313","1151","1532","5957","8584","0","0",*/
+		"700","4034","408","12867","13311","0","0",
+		/*[blue judge] r[0] r[1] g[0] g[1] b[0] b[1]*/
+		"265","547","351","2337","1923","0","0";
+		/*[module_id] [golden judge] r[0] r[1] g[0] g[1] b[0] b[1]*/
+		bh1745,cal_data1 = "1","242","1565","932","9035","8607","0","0",
+		/*[white judge] r[0] r[1] g[0] g[1] b[0] b[1]*/
+		"189","146","88","598","533","0","0",
+		/*[balck judge] r[0] r[1] g[0] g[1] b[0] b[1]*/
+		"1040","1911","310","11509","9976","0","0",
+		/*[blue judge] r[0] r[1] g[0] g[1] b[0] b[1]*/
+		"265","547","351","2337","1923","0","0";
+		/*[module_id] [golden judge] r[0] r[1] g[0] g[1] b[0] b[1]*/
+		bh1745,cal_data2 = "2","199","488","274","2283","2068","0","0",
+		/*[white judge] r[0] r[1] g[0] g[1] b[0] b[1]*/
+		"194","216","113","886","821","0","0",
+		/*[balck judge] r[0] r[1] g[0] g[1] b[0] b[1]*/
+		"396","2301","547","13243","12687","0","0",
+		/*[blue judge] r[0] r[1] g[0] g[1] b[0] b[1]*/
+		"265","547","351","2337","1923","0","0";
+	};
+};
+
+
+/*****finger pinctrl start *****/
+/*
+&tlmm {
+	hall_int_0_pin{
+		hall_int_0_default: hall_int_0_default {
+			 mux {
+					pins = "gpio123","gpio124";
+					function = "gpio";
+				};
+			config {
+				pins="gpio123","gpio124";
+				drive-strength = <6>;
+				bias-pull-up;
+				};
+		};
+		hall_int_0_sleep: hall_int_0_sleep {
+			 mux {
+					pins = "gpio123","gpio124";
+					function = "gpio";
+				};
+			config{
+				pins= "gpio123","gpio124";
+				drive-strength = <6>;
+				bias-high-impedance;
+				};
+		};
+
+	};
+};
+&soc {
+	hall_device_out {
+		compatible = "nubia,hall_device";
+		status = "okay";
+		pinctrl-names = "hall_default","hall_sleep";
+		pinctrl-0 = <&hall_int_0_default >;
+		pinctrl-1 = <&hall_int_0_sleep >;
+		vdd-supply = <&pm8998_lvs2>;////check list vdd lvds
+		interrupt-parent = <&tlmm>;
+		hall_device,hw_device_count = <2>;
+		hall_device,irq-gpio-0 = <&tlmm 124 0x2002>;
+		hall_device,irq-gpio-1 = <&tlmm 123 0x2002>;
+	};
+};
+*/
+
+

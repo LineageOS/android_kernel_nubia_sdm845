@@ -1,0 +1,137 @@
+/*
+ * Copyright (c) 2015-2016, The Linux Foundation. All rights reserved.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 and
+ * only version 2 as published by the Free Software Foundation.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ */
+
+&qupv3_se14_i2c {
+	status = "ok";
+	synaptics_dsx@20 {
+		status = "ok";
+		compatible = "synaptics,dsx-i2c";
+		reg = <0x20>;
+		interrupt-parent = <&tlmm>;
+		interrupts = <125 0x2008>;
+		vdd_lcd-supply = <&pm8998_l14>;
+		vdd_ana-supply = <&pm8998_l28>;
+//		vcc_i2c-supply = <&pm8998_l6>;
+		synaptics,lcd-reg-name = "vdd_lcd";
+		synaptics,pwr-reg-name = "vdd_ana";
+//		synaptics,bus-reg-name = "vcc_i2c";
+		synaptics,irq-gpio = <&tlmm 125 0x2008>;
+		synaptics,irq-on-state = <0>;
+		synaptics,irq-flags = <0x2008>; /* IRQF_ONESHOT | IRQF_TRIGGER_LOW */
+		synaptics,busregen-gpio = <&tlmm 32 0x0>;   //1.8V EN GPIO
+		synaptics,busregen-on-state = <1>;
+//		synaptics,power-delay-ms = <20>;
+		synaptics,reset-gpio = <&tlmm 99 0x0>;
+		synaptics,reset-on-state = <0>;
+		synaptics,reset-active-ms = <20>;
+		synaptics,reset-delay-ms = <20>;
+		synaptics,button_test_flag = <0> ;
+		synaptics,factory_up_cap = <3400> ;
+		synaptics,factory_low_cap = <1000> ;
+		synaptics,ub-i2c-addr = <0x20>;
+		pinctrl-names = "synaptics_pin_active", "synaptics_pin_suspend";
+		pinctrl-0 = <&synaptics_int_active &synaptics_reset_active &synaptics_pwen_active>;
+		pinctrl-1 = <&synaptics_int_suspend &synaptics_reset_suspend &synaptics_pwen_suspend>;
+	};
+};
+
+/*****finger pinctrl start *****/
+&tlmm {
+
+	//nubia touch screen pinctrl
+		nubia_synaptics_int {
+			synaptics_int_active: synaptics_int_active {
+				mux {
+					pins = "gpio125";
+					function = "gpio";
+				};
+
+				config {
+					pins = "gpio125";
+					drive-strength = <16>;
+					bias-pull-up;
+				};
+			};
+
+			synaptics_int_suspend: synaptics_int_suspend {
+				mux {
+					pins = "gpio125";
+					function = "gpio";
+				};
+
+				config {
+					pins = "gpio125";
+					drive-strength = <16>;
+					bias-pull-down;
+				};
+			};
+		};
+
+	nubia_synaptics_reset {
+			synaptics_reset_active: synaptics_reset_active {
+				mux {
+					pins = "gpio99";
+					function = "gpio";
+				};
+
+				config {
+					pins = "gpio99";
+					drive-strength = <16>;
+					bias-pull-up;
+				};
+			};
+
+			synaptics_reset_suspend: synaptics_reset_suspend {
+				mux {
+					pins = "gpio99";
+					function = "gpio";
+				};
+
+				config {
+					pins = "gpio99";
+					drive-strength = <16>;
+					bias-pull-down;
+				};
+			};
+		};
+
+
+	//nubia touch screen pinctrl
+		nubia_synaptics_pwen {
+			synaptics_pwen_active: synaptics_pwen_active {
+				mux {
+					pins = "gpio32";
+					function = "gpio";
+				};
+
+				config {
+					pins = "gpio32";
+					drive-strength = <8>;
+					bias-pull-up;
+				};
+			};
+
+			synaptics_pwen_suspend: synaptics_pwen_suspend {
+				mux {
+					pins = "gpio32";
+					function = "gpio";
+				};
+
+				config {
+					pins = "gpio32";
+					drive-strength = <8>;
+					bias-pull-up;
+				};
+			};
+		};
+};

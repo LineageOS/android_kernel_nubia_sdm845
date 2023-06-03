@@ -1,0 +1,85 @@
+
+#include "dsi-panel-s6d1ha2a01-jdi-1080x2160-cmd.dtsi"
+
+&soc {
+	nubia_dsi_panel_pwr_supply: nubia_dsi_panel_pwr_supply {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			qcom,panel-supply-entry@0 {
+				reg = <0>;
+				qcom,supply-name = "lab";
+				qcom,supply-min-voltage = <5400000>;
+				qcom,supply-max-voltage = <5600000>;
+				qcom,supply-enable-load = <100000>;
+				qcom,supply-disable-load = <100>;
+			};
+			qcom,panel-supply-entry@1 {
+				reg = <1>;
+				qcom,supply-name = "ibb";
+				qcom,supply-min-voltage = <5400000>;
+				qcom,supply-max-voltage = <5600000>;
+				qcom,supply-enable-load = <100000>;
+				qcom,supply-disable-load = <100>;
+			};
+		};
+	dsi_nubia_jdi_s6d1ha2a01_cmd_display: qcom,dsi-display@18 {
+		compatible = "qcom,dsi-display";
+		label = "dsi_nubia_jdi_s6d1ha2a01_cmd_display";
+		qcom,display-type = "primary";
+
+		qcom,dsi-ctrl = <&mdss_dsi0>;
+		qcom,dsi-phy = <&mdss_dsi_phy0>;
+		clocks = <&mdss_dsi0_pll BYTECLK_MUX_0_CLK>,
+			<&mdss_dsi0_pll PCLK_MUX_0_CLK>;
+		clock-names = "src_byte_clk", "src_pixel_clk";
+
+		pinctrl-names = "panel_active", "panel_suspend";
+		pinctrl-0 = <&sde_dsi_active &sde_te_active>;
+		pinctrl-1 = <&sde_dsi_suspend &sde_te_suspend>;
+		qcom,platform-te-gpio = <&tlmm 10 0>;
+		qcom,platform-reset-gpio = <&tlmm 6 0>;
+		qcom,panel-mode-gpio = <&tlmm 32 0>;
+
+		qcom,dsi-panel = <&dsi_nubia_jdi_s6d1ha2a01_cmd>;
+		lab-supply = <&lab_regulator>;
+		ibb-supply = <&ibb_regulator>;
+	};
+};
+
+&dsi_nubia_jdi_s6d1ha2a01_cmd {
+        qcom,mdss-dsi-t-clk-post = <0x0c>;
+        qcom,mdss-dsi-t-clk-pre = <0x29>;
+
+	qcom,esd-check-enabled;
+	qcom,mdss-dsi-panel-status-check-mode = "reg_read";
+	qcom,mdss-dsi-panel-status-command = [06 01 00 09 00 00 01 0a];
+	qcom,mdss-dsi-panel-status-command-state = "dsi_hs_mode";
+	qcom,mdss-dsi-panel-status-value = <0x9C>;
+	qcom,mdss-dsi-panel-on-check-value = <0x9C>;
+	qcom,mdss-dsi-panel-status-read-length = <1>;
+
+        qcom,mdss-dsi-display-timings {
+                timing@0{
+                        qcom,mdss-dsi-panel-phy-timings = [00 1A 06 06 22 20 07
+                                07 04 03 04 00];
+                        qcom,display-topology = <1 0 1>;
+                        qcom,default-topology-index = <0>;
+                };
+        };
+};
+
+&dsi_nubia_jdi_s6d1ha2a01_cmd {
+				qcom,panel-supply-entries = <&nubia_dsi_panel_pwr_supply>;
+				qcom,mdss-dsi-bl-pmic-control-type = "bl_ctrl_wled";
+				qcom,mdss-brightness-max-level = <4095>;
+				qcom,mdss-dsi-bl-min-level = <25>;
+				qcom,mdss-dsi-bl-max-level = <4095>;
+				qcom,mdss-dsi-mode-sel-gpio-state = "single_port";
+				qcom,platform-reset-gpio = <&tlmm 6 0>;
+				qcom,platform-te-gpio = <&tlmm 10 0>;
+};
+
+&dsi_nubia_jdi_s6d1ha2a01_cmd_display {
+				qcom,dsi-display-active;
+};

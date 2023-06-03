@@ -1,0 +1,30 @@
+/*
+ * nubia overwrite dts
+ */
+
+&qupv3_se3_i2c{
+ 
+				nq@28 {
+					status = "disable";
+				};
+				sec-nfc@27{
+					compatible = "samsung,sec-nfc";
+					reg = <0x27>;
+					sec-nfc,irq-gpio  = <&tlmm 63 0x00>;
+					sec-nfc,ese_ptl-gpio = <&tlmm 11 0x00>;
+					sec-nfc,ven-gpio = <&tlmm 12 0x00>;
+					sec-nfc,firm-gpio = <&tlmm 62 0x00>;
+					interrupt-parent = <&tlmm>;
+					interrupts = <63 0>;
+					qcom,clk-src = "BBCLK3";
+					//interrupt-names = "BRCM_NFC_INT";
+					//pinctrl-names = "bcm2079x_pin_active","bcm2079x_pin_suspend";
+					//pinctrl-0 = <&bcm2079x_int_active &bcm2079x_en_active &bcm2079x_ctl_active>;
+					//pinctrl-1 = <&bcm2079x_int_suspend &bcm2079x_en_suspend &bcm2079x_ctl_suspend>;
+					sec-nfc,clk-gpio = <&pm8998_gpios 21 0x00>;
+					clocks = <&clock_rpmh RPMH_LN_BB_CLK3>;
+					clock-names = "ref_clk";
+				};
+};
+
+ 
