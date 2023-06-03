@@ -32,6 +32,7 @@
 #define CAM_NUBIA_SET_OIS_OFF                             0x310
 #define CAM_NUBIA_SET_OIS_ON                              0x311
 
+#if defined(CONFIG_MACH_NUBIA_NX616J) || defined(CONFIG_MACH_NUBIA_NX619J)
 //ZTEMT:fengxun modify for AF calibration --- Start
 #define CAM_NUBIA_SET_AF_CAL_DATA                         0x410
 #define CAM_NUBIA_GET_AF_CAL_DATA                         0x411
@@ -42,6 +43,7 @@ struct af_eeprom_write_t
 };
 static struct af_eeprom_write_t g_afdata;
 //ZTEMT:fengxun modify for AF calibration --- End
+#endif
 
 extern void msm_ois_lc898124_enable(int enable);
 
@@ -60,7 +62,7 @@ struct nubia_eeprom_dev_t *nubia_eeprom_dev;
 
 static struct camera_io_master eeprom_master_info;
 
-
+#if defined(CONFIG_MACH_NUBIA_NX616J) || defined(CONFIG_MACH_NUBIA_NX619J)
 //ZTEMT:fengxun modify for AF calibration --- Start
 int32_t cam_nubia_eeprom_read_af_data(void)
 {
@@ -258,6 +260,7 @@ int32_t cam_nubia_eeprom_write_data_addr(uint32_t addr, unsigned int buf)
 	return rc;
 }
 //ZTEMT:fengxun modify for AF calibration --- End
+#endif
 
 int cam_save_eeprom_data(uint8_t *memptr, uint32_t size, uint32_t saddr)
 {
@@ -303,12 +306,14 @@ int32_t cam_nubia_eeprom_io_init(struct camera_io_master io_master)
 	int rc = 0;
 	eeprom_master_info = io_master;
 	CAM_ERR(CAM_EEPROM, " SID %x\n", eeprom_master_info.cci_client->sid);
-
+	
+#if defined(CONFIG_MACH_NUBIA_NX616J) || defined(CONFIG_MACH_NUBIA_NX619J)
     //ZTEMT:fengxun modify for AF calibration --- Start
     if(0 == g_afdata.num_bytes){
         cam_nubia_eeprom_read_af_data();
     }
     //ZTEMT:fengxun modify for AF calibration --- End
+#endif
 
 	return rc;
 }
@@ -543,12 +548,16 @@ static long cam_nubia_eeprom_ioctl32 (struct file *filp, unsigned int cmd, unsig
 	}
 	cmd_data;
 
+#if defined(CONFIG_MACH_NUBIA_NX616J) || defined(CONFIG_MACH_NUBIA_NX619J)
 	//ZTEMT:fengxun modify for AF calibration --- Start
 	struct af_eeprom_write_t af_data;
 	//ZTEMT:fengxun modify for AF calibration --- End
+#endif
 
 	CAM_ERR(CAM_EEPROM, " cam_nubia_eeprom_ioctl32 cmd %x ", cmd);
+#if defined(CONFIG_MACH_NUBIA_NX616J) || defined(CONFIG_MACH_NUBIA_NX619J)
 	CAM_ERR(CAM_EEPROM, " CAL_DATA_ADDR %x ", CAL_DATA_ADDR);
+#endif
 	if(NULL == (void __user *)arg){
 		CAM_ERR(CAM_EEPROM, "arg is NULL,error");
 		return -EFAULT;
@@ -676,7 +685,7 @@ static long cam_nubia_eeprom_ioctl32 (struct file *filp, unsigned int cmd, unsig
 		msm_ois_lc898124_enable(1);
 	}
 
-
+#if defined(CONFIG_MACH_NUBIA_NX616J) || defined(CONFIG_MACH_NUBIA_NX619J)
 	//ZTEMT:fengxun modify for AF calibration --- Start
     //for write AF data to eeprom
     if(CAM_NUBIA_SET_AF_CAL_DATA == cmd){
@@ -723,6 +732,7 @@ static long cam_nubia_eeprom_ioctl32 (struct file *filp, unsigned int cmd, unsig
     }
 
 	//ZTEMT:fengxun modify for AF calibration --- End
+#endif
 
 	return rc;
 }

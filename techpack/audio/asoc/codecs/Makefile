@@ -37,6 +37,8 @@ wcd-core-objs                  := wcd9xxx-rst.o wcd9xxx-core-init.o \
 				msm-cdc-pinctrl.o msm-cdc-supply.o
 wcd-core-objs	+= wcd934x/wcd934x-regmap.o
 wcd-core-objs	+= wcd934x/wcd934x-tables.o
+snd-soc-tas2555-generic-objs := tas2555-core.o tas2555-regmap.o tas2555-codec.o tas2555-misc.o tiload.o
 
 obj-$(CONFIG_WCD9XXX_CODEC_CORE) += wcd-core.o
 obj-$(CONFIG_SND_SOC_MSM_HDMI_CODEC_RX) += msm_hdmi_codec_rx.o
+obj-$(CONFIG_SND_SOC_TAS2555_GENERIC) += snd-soc-tas2555-generic.o

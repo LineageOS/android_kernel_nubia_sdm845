@@ -10,4 +10,5 @@ obj-$(CONFIG_MSM_ULTRASOUND) += usf.o usfcdev.o q6usm.o
 ifeq ($(CONFIG_ARCH_SDM845), y)
 obj-$(CONFIG_MSM_AVTIMER) += avtimer.o
 endif
+obj-y += msm-ultrasound.o apr-ultrasound.o
 obj-$(CONFIG_MSM_QDSP6V2_CODECS)  += codecs/

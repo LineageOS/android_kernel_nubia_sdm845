@@ -1081,9 +1081,16 @@ static int soc_pcm_hw_free(struct snd_pcm_substream *substream)
 	/* apply codec digital mute */
 	for (i = 0; i < rtd->num_codecs; i++) {
 		if ((playback && rtd->codec_dais[i]->playback_active == 1) ||
-		    (!playback && rtd->codec_dais[i]->capture_active == 1))
-			snd_soc_dai_digital_mute(rtd->codec_dais[i], 1,
-						 substream->stream);
+		    (!playback && rtd->codec_dais[i]->capture_active == 1)) {
+			if (rtd->codec_dais[i]->name != NULL) {
+				dev_dbg(rtd->dev, "ASoC: name is %s\n", rtd->codec_dais[i]->name);
+				if (!playback && !strcmp(rtd->codec_dais[i]->name,"tas2555 ASI1")) {
+					pr_err("do not digital mute in case of PRI_MI2S_TX\n");
+				} else {
+					snd_soc_dai_digital_mute(rtd->codec_dais[i], 1,	substream->stream);
+				}
+			}
+		}
 	}
 
 	/* free any machine hw params */

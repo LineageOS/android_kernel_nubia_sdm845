@@ -114,8 +114,11 @@ struct rgb_bh1745_platform_data {
 
 	bool i2c_pull_up;
 	bool digital_pwr_regulator;
+
+#if defined(CONFIG_MACH_NUBIA_NX616J)
     unsigned int adc_gain;
     unsigned int TRANS_VALUE;
+#endif
 
 	unsigned int irq_gpio;
 	u32 irq_gpio_flags;

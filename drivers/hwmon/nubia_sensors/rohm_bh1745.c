@@ -75,6 +75,8 @@
 					LOG_TAG, __FUNCTION__, __LINE__, ##args)
 #define SENSOR_LOG_INFO(fmt, args...)  printk(KERN_INFO "[%s] [%s:%d] "  fmt,\
 					LOG_TAG, __FUNCTION__, __LINE__, ##args)
+					
+#if defined(CONFIG_MACH_NUBIA_NX616J)
 #define SENSOR_LOG_DEBUG_IF(en, fmt, args...) \
 do { \
     if (en) { \
@@ -82,6 +84,8 @@ do { \
 					LOG_TAG, __FUNCTION__, __LINE__, ##args); \
     }; \
 } while (0)
+#endif
+
 #ifdef  DEBUG_ON
 #define SENSOR_LOG_DEBUG(fmt, args...) printk(KERN_DEBUG "[%s] [%s:%d] "  fmt,\
 					LOG_TAG, __FUNCTION__, __LINE__, ##args)
@@ -347,14 +351,20 @@ static void rgb_bh1745_dump_register(struct i2c_client *client)
 static int rgb_bh1745_driver_reset(struct i2c_client *client)
 {
 	int ret;
+#if defined(CONFIG_MACH_NUBIA_NX616J)
     struct rgb_bh1745_data *data = i2c_get_clientdata(client);
+#endif
 	/* set soft ware reset */
 	ret = rgb_bh1745_i2c_write(client, BH1745_SYSTEMCONTROL, (SW_RESET | INT_RESET), BH1745_I2C_BYTE);
 	if (ret < 0){
 		SENSOR_LOG_ERROR("i2c error,rgb_bh1745_driver_reset fail %d\n",ret);
 		return ret;
 	}
+#if defined(CONFIG_MACH_NUBIA_NX616J)
 	SENSOR_LOG_DEBUG_IF(data->debug_level,"rgb_bh1745 reset\n");
+#else
+	SENSOR_LOG_DEBUG("rgb_bh1745 reset\n");
+#endif
 	/*wait for device reset sucess*/
 	mdelay(1);
 	return (ret);
@@ -363,14 +373,19 @@ static int rgb_bh1745_driver_reset(struct i2c_client *client)
 static int rgb_bh1745_set_enable(struct i2c_client *client, int enable)
 {
 	int ret;
+#if defined(CONFIG_MACH_NUBIA_NX616J)
     struct rgb_bh1745_data *data = i2c_get_clientdata(client);
-
+#endif
 	ret = rgb_bh1745_i2c_write(client, BH1745_MODECONTROL2, enable, BH1745_I2C_BYTE);
 	if (ret < 0) {
 		SENSOR_LOG_ERROR("i2c error,enable = %d\n",enable);
 		return ret;
 	}
+#if defined(CONFIG_MACH_NUBIA_NX616J)
 	SENSOR_LOG_DEBUG_IF(data->debug_level,"rgb_bh1745 enable = %d\n",enable);
+#else
+	SENSOR_LOG_DEBUG(" rgb_bh1745 enable = %d\n",enable);
+#endif
 	return ret;
 }
 
@@ -386,7 +401,11 @@ static int rgb_bh1745_set_pers(struct i2c_client *client, int pers)
 	}
 
 	data->pers = pers;
+#if defined(CONFIG_MACH_NUBIA_NX616J)
 	SENSOR_LOG_DEBUG_IF(data->debug_level,"rgb_bh1745 pers = %d\n",pers);
+#else
+	SENSOR_LOG_DEBUG("rgb_bh1745 pers = %d\n",pers);
+#endif
 	return ret;
 }
 
@@ -402,7 +421,11 @@ static int rgb_bh1745_set_interrupt(struct i2c_client *client, int irq_control)
 	}
 
 	data->irq_control = irq_control;
+#if defined(CONFIG_MACH_NUBIA_NX616J)
 	SENSOR_LOG_DEBUG_IF(data->debug_level,"rgb_bh1745 irq_control = %d\n",irq_control);
+#else
+	SENSOR_LOG_DEBUG("rgb_bh1745 irq_control = %d\n",irq_control);
+#endif
 	return ret;
 }
 
@@ -418,7 +441,11 @@ static int rgb_bh1745_set_control(struct i2c_client *client, int control)
 	}
 
 	data->control = control;
+#if defined(CONFIG_MACH_NUBIA_NX616J)
 	SENSOR_LOG_DEBUG_IF(data->debug_level,"rgb_bh1745 control = %d\n",control);
+#else
+	SENSOR_LOG_DEBUG("rgb_bh1745 control = %d\n",control);
+#endif
 	return ret;
 }
 
@@ -434,7 +461,11 @@ static int rgb_bh1745_set_measure_time(struct i2c_client *client, int measure_ti
 	}
 
 	data->measure_time = measure_time;
+#if defined(CONFIG_MACH_NUBIA_NX616J)
 	SENSOR_LOG_DEBUG_IF(data->debug_level,"rgb_bh1745 measure_time = %d\n",measure_time);
+#else
+	SENSOR_LOG_DEBUG("rgb_bh1745 measure_time = %d\n",measure_time);
+#endif
 	return ret;
 }
 static void rgb_bh1745_cal_data_init(struct rgb_bh1745_data *data)
@@ -458,9 +489,11 @@ static int rgb_bh1745_calc_lx(struct i2c_client *client, struct rgb_bh1745_data 
 	long long int lx_tmp;
 
 	struct rgb_bh1745_rgb_data *data = &rdata->rgb_data;
+
+#if defined(CONFIG_MACH_NUBIA_NX616J)
     struct rgb_bh1745_platform_data *pdata = rdata->platform_data;
     unsigned int bTRANS;
-
+#endif
 
 	if ((data->red >= BH1745_RGB_DATA_MAX)
 		|| (data->green >= BH1745_RGB_DATA_MAX)
@@ -477,27 +510,42 @@ static int rgb_bh1745_calc_lx(struct i2c_client *client, struct rgb_bh1745_data 
 	else if((data->clear * JUDEG_COEFF) <( cofficient_judge*data->green))
 	{
 		lx_tmp = data->green*cofficient_green[0] + data->red *cofficient_red[0];
+#if defined(CONFIG_MACH_NUBIA_NX616J)
 		SENSOR_LOG_DEBUG_IF(rdata->debug_level,">JUDEG_COEFF lx_temp 1: %lld\n", lx_tmp);
+#else
+		SENSOR_LOG_DEBUG("lx_temp 1: %lld\n", lx_tmp);
+#endif
 	}
 	else
 	{
 		lx_tmp = data->green*cofficient_green[1]+data->red *cofficient_red[1];
+#if defined(CONFIG_MACH_NUBIA_NX616J)
 		SENSOR_LOG_DEBUG_IF(rdata->debug_level,"lx_temp 1: %lld\n", lx_tmp);
+#else
+		SENSOR_LOG_DEBUG("lx_temp 1: %lld\n", lx_tmp);
+#endif
 	}
 
 	//SENSOR_LOG_DEBUG("cal lx_tmp is %lld\n", lx_tmp);
 
 	if (lx_tmp < 0)
 		lx_tmp = 0;
+
+#if defined(CONFIG_MACH_NUBIA_NX616J)
 /* Promblem Number: PR000     Author:xuxiaohua,   Date:2018/7/24
    Description    : add factor X1,X2,X16  */
     bTRANS= pdata->TRANS_VALUE;
-
-	//lx= lx_tmp/(gain/1)/(itime/160)/1000;
     lx= lx_tmp/(gain/bTRANS)/(itime/160)/1000;
+#else
+	lx= lx_tmp/(gain/1)/(itime/160)/1000;
+#endif
 /* END:   Added by xuxiaohua, 2018/7/26 */
 	if (rdata->debug_level)
+#if defined(CONFIG_MACH_NUBIA_NX616J)
 		SENSOR_LOG_INFO("gain = %d, itime=%d, bTRANS:%d, lx = %lld\n",gain, itime, bTRANS,lx);
+#else
+		SENSOR_LOG_INFO("gain = %d, itime=%d, lx = %lld\n",gain, itime, lx);
+#endif
 	//SENSOR_LOG_DEBUG("judge = %ld ,red[0] = %ld, red[1]=%ld, green[0] = %ld, green[1]=%ld, blue[0]=%ld,blue[1]=%ld\n",cofficient_judge,cofficient_red[0], cofficient_red[1],cofficient_green[0], cofficient_green[1],cofficient_blue[0],cofficient_blue[1]);
 
 	return ((int)lx);
@@ -505,7 +553,10 @@ static int rgb_bh1745_calc_lx(struct i2c_client *client, struct rgb_bh1745_data 
 
 static int rgb_bh1745_als_rgbc_sample(struct rgb_bh1745_data *data, struct rgbc_parameter *rgbc)
 {
-	int ret,status;
+	int ret;
+#if defined(CONFIG_MACH_NUBIA_NX616J)
+	int status;
+#endif
 	struct i2c_client *client = data->client;
 
 	ret = rgb_bh1745_i2c_read(client, BH1745_MODECONTROL2, BH1745_I2C_WORD);
@@ -519,6 +570,7 @@ static int rgb_bh1745_als_rgbc_sample(struct rgb_bh1745_data *data, struct rgbc_
 		rgbc->green = rgb_bh1745_i2c_read(client, BH1745_GREEN_DATA_LSB, BH1745_I2C_WORD);
 		rgbc->blue  = rgb_bh1745_i2c_read(client, BH1745_BLUE_DATA_LSB, BH1745_I2C_WORD);
 		rgbc->clear = rgb_bh1745_i2c_read(client, BH1745_CLEAR_DATA_LSB, BH1745_I2C_WORD);
+#if defined(CONFIG_MACH_NUBIA_NX616J)
 		SENSOR_LOG_DEBUG_IF(data->debug_level,"read rgbc reg success\n");
 		status = 0;
 	} else {
@@ -526,6 +578,14 @@ static int rgb_bh1745_als_rgbc_sample(struct rgb_bh1745_data *data, struct rgbc_
 		status = -1;
 	}
 	return status;
+#else
+		SENSOR_LOG_DEBUG("read rgbc reg success\n");
+	} else {
+		SENSOR_LOG_DEBUG("the data is not update\n");
+		return 1;
+	}
+	return 0;
+#endif
 
 }
 static int rgb_bh1745_enable_prepare(struct rgb_bh1745_data *data)
@@ -553,7 +613,11 @@ static int rgb_bh1745_enable_prepare(struct rgb_bh1745_data *data)
 		return ret;
 	}
 	mutex_unlock(&data->single_lock);
+#if defined(CONFIG_MACH_NUBIA_NX616J)
 	SENSOR_LOG_DEBUG_IF(data->debug_level,"enable als sensor,data->enable=0x%x\n", data->enable);
+#else
+	SENSOR_LOG_DEBUG("enable als sensor,data->enable=0x%x\n", data->enable);
+#endif
 	return 0;
 }
 static int rgb_bh1745_get_lux(struct rgb_bh1745_data *data, bool report_event)
@@ -716,8 +780,12 @@ static int rgb_bh1745_enable_als_sensor(struct i2c_client *client, int val)
 	if (val == 1) {
 		/* turn on light  sensor */
 		SENSOR_LOG_INFO("pdata->panel_id = %d pdata->tp_color = %d\n", pdata->panel_id,pdata->tp_color);
+#if defined(CONFIG_MACH_NUBIA_NX616J)
 		SENSOR_LOG_DEBUG_IF(data->debug_level,"lux cal parameter from dtsi  is judge[%ld], red[%ld], red[%ld], green[%ld] , green[%ld], blue[%ld],  blue[%ld]\n",
             cofficient_judge, cofficient_red[0],cofficient_red[1],cofficient_green[0],cofficient_green[1],cofficient_blue[0],cofficient_blue[1]);
+#else
+		SENSOR_LOG_DEBUG("lux cal parameter from dtsi  is judge[%ld], red[%ld], red[%ld], green[%ld] , green[%ld], blue[%ld],  blue[%ld]\n", cofficient_judge, cofficient_red[0],cofficient_red[1],cofficient_green[0],cofficient_green[1],cofficient_blue[0],cofficient_blue[1]);
+#endif
 		if (data->enable_als_sensor == 0) {
 			ret = rgb_bh1745_enable_prepare(data);
 			if (ret < 0) {
@@ -738,15 +806,23 @@ static int rgb_bh1745_enable_als_sensor(struct i2c_client *client, int val)
 
 			mutex_lock(&data->single_lock);
 			data->enable_als_sensor = 0;
+
+#if defined(CONFIG_MACH_NUBIA_NX616J)
 /* Promblem Number: PR000     Author:xuxiaohua,   Date:2018/7/24
    Description    : add adc_gain TRANS_VALUE for dtsi */
-			//data->enable =  ADC_GAIN_X16|RGBC_EN_OFF;
             data->enable = pdata->adc_gain |RGBC_EN_OFF;
+#else
+			data->enable =  ADC_GAIN_X16|RGBC_EN_OFF;
+#endif
 /* END:   Added by xuxiaohua, 2018/7/26 */
 			mutex_unlock(&data->single_lock);
 			rgb_bh1745_set_enable(client, data->enable);
 
+#if defined(CONFIG_MACH_NUBIA_NX616J)
 			SENSOR_LOG_DEBUG_IF(data->debug_level,"disable rgb bh1745 als sensor,data->enable = 0x%x\n",data->enable);
+#else
+			SENSOR_LOG_DEBUG("disable rgb bh1745 als sensor,data->enable = 0x%x\n",data->enable);
+#endif
 			/* disable als sensor, cancne data report hrtimer */
 			hrtimer_cancel(&data->timer);
 			cancel_work_sync(&data->als_dwork);
@@ -759,7 +835,11 @@ static int rgb_bh1745_enable_als_sensor(struct i2c_client *client, int val)
 	if ((data->enable_als_sensor == 0)&&(pdata->power_on)) {
 		pdata->power_on(false, data);
 	}
+#if defined(CONFIG_MACH_NUBIA_NX616J)
 	SENSOR_LOG_DEBUG_IF(data->debug_level,"enable als sensor success\n");
+#else
+	SENSOR_LOG_DEBUG("enable als sensor success\n");
+#endif
 	return 0;
 }
 /*
@@ -778,7 +858,11 @@ static int rgb_bh1745_als_set_enable(struct sensors_classdev *sensors_cdev,
 		SENSOR_LOG_ERROR("invalid value(%d)\n",enable);
 		return -EINVAL;
 	}
+#if defined(CONFIG_MACH_NUBIA_NX616J)
 	SENSOR_LOG_DEBUG_IF(data->debug_level,"rgb bh1745 als enable=%d\n",enable);
+#else
+	SENSOR_LOG_DEBUG("rgb bh1745 als enable=%d\n",enable);
+#endif
 
 	/*for debug and print registers value when enable/disable the als every time*/
 	if (enable == 0)
@@ -842,9 +926,17 @@ static ssize_t attr_rgb_enable_store(struct device *dev,
 	struct rgb_bh1745_data *data = dev_get_drvdata(dev);
 	struct i2c_client *client = data->client;
 	unsigned long val = 0;
+#if defined(CONFIG_MACH_NUBIA_NX616J)
 	SENSOR_LOG_DEBUG_IF(data->debug_level,"enter\n");
+#else
+	SENSOR_LOG_DEBUG("enter\n");
+#endif
 	val = simple_strtoul(buf, NULL, 10);
+#if defined(CONFIG_MACH_NUBIA_NX616J)
 	SENSOR_LOG_DEBUG_IF(data->debug_level,"enable als sensor (%ld)\n", val);
+#else
+	SENSOR_LOG_DEBUG("enable als sensor (%ld)\n", val);
+#endif
 
 	if ((val != 0) && (val != 1)) {
 		SENSOR_LOG_INFO("enable ps sensor=%ld\n", val);
@@ -855,7 +947,11 @@ static ssize_t attr_rgb_enable_store(struct device *dev,
 	if (err != 0) {
 		SENSOR_LOG_ERROR("enable failed.\n");
 	}
+#if defined(CONFIG_MACH_NUBIA_NX616J)
 	SENSOR_LOG_DEBUG_IF(data->debug_level,"exit\n");
+#else
+	SENSOR_LOG_DEBUG("exit\n");
+#endif
 	return count;
 }
 
@@ -1040,8 +1136,11 @@ static int rgb_bh1745_file_read(char *file_path, char *read_buf ,int count)
 	int vfs_retval = -EINVAL;
 	bool file_exist = true;
 	char *buf = NULL;
-
+#if defined(CONFIG_MACH_NUBIA_NX616J)
 	SENSOR_LOG_INFO("read infomation : size =%d\n", count);
+#else
+	SENSOR_LOG_DEBUG("read infomation : size =%d\n", count);
+#endif
 	if (NULL == file_path) {
 		SENSOR_LOG_ERROR("file_path is NULL\n");
 		return -EINVAL;
@@ -1070,7 +1169,11 @@ static int rgb_bh1745_file_read(char *file_path, char *read_buf ,int count)
 	set_fs(KERNEL_DS);
 
 	if (!file_exist) {
+#if defined(CONFIG_MACH_NUBIA_NX616J)
 		SENSOR_LOG_INFO("init file memory\n");
+#else
+		SENSOR_LOG_DEBUG("init file memory\n");
+#endif
 		if (!IS_ERR_OR_NULL(buf)) {
 			vfs_retval = vfs_write(file_p, (char *)buf, sizeof(buf), &file_p->f_pos);
 			if (vfs_retval < 0) {
@@ -1104,8 +1207,11 @@ static int rgb_bh1745_file_write(char *file_path, const char *write_buf ,int cou
 	struct file *file_p;
 	mm_segment_t old_fs;
 	int vfs_retval = -EINVAL;
-
+#if defined(CONFIG_MACH_NUBIA_NX616J)
 	SENSOR_LOG_INFO("write infomation : size =%d\n", count);
+#else
+	SENSOR_LOG_DEBUG("write infomation : size =%d\n", count);
+#endif
 	if (NULL == file_path) {
 		SENSOR_LOG_ERROR("file_path is NULL\n");
 		return -EINVAL;
@@ -1704,11 +1810,16 @@ static int rgb_bh1745_read_device_id(struct i2c_client *client)
 static int rgb_bh1745_init_client(struct i2c_client *client)
 {
 	struct rgb_bh1745_data *data = i2c_get_clientdata(client);
+#if defined(CONFIG_MACH_NUBIA_NX616J)
     struct rgb_bh1745_platform_data *pdata = data->platform_data;
+#endif
 	int err;
 
-//	data->enable = ADC_GAIN_X16|RGBC_EN_OFF;
+#if defined(CONFIG_MACH_NUBIA_NX616J)
     data->enable = pdata->adc_gain |RGBC_EN_OFF;
+#else
+	data->enable = ADC_GAIN_X16|RGBC_EN_OFF;
+#endif
 /* END:   Added by xuxiaohua, 2018/7/26 */
 	err = rgb_bh1745_set_enable(client, data->enable);
 	if (err < 0) {
@@ -1825,8 +1936,11 @@ static void rgb_bh1745_parameter_init(struct rgb_bh1745_data *data)
 {
 	struct rgb_bh1745_platform_data *pdata = data->platform_data;
 
-//	data->enable = ADC_GAIN_X16|RGBC_EN_OFF;	/* default mode is standard */
+#if defined(CONFIG_MACH_NUBIA_NX616J)
     data->enable = pdata->adc_gain||RGBC_EN_OFF;
+#else
+	data->enable = ADC_GAIN_X16|RGBC_EN_OFF;	/* default mode is standard */
+#endif
 /* END:   Added by xuxiaohua, 2018/7/26 */
 	data->enable_als_sensor = 0;	// default to 0
 	data->als_poll_delay = MEASURE_DELAY_640MS;	// default to 640ms
@@ -1893,7 +2007,11 @@ static int sensor_regulator_power_on(struct rgb_bh1745_data *data, bool on)
 		}
 	}
 	mdelay(5);
+#if defined(CONFIG_MACH_NUBIA_NX616J)
 	SENSOR_LOG_DEBUG_IF(data->debug_level,"Sensor regulator power on =%d\n",on);
+#else
+	SENSOR_LOG_DEBUG("Sensor regulator power on =%d\n",on);
+#endif
 	return rc;
 }
 
@@ -1982,6 +2100,7 @@ static int sensor_parse_dt(struct device *dev,
 	pdata->exit = sensor_platform_hw_exit;
 	pdata->power_on = sensor_platform_hw_power_on;
 
+#if defined(CONFIG_MACH_NUBIA_NX616J)
 /* Promblem Number: PR000     Author:xuxiaohua,   Date:2018/7/24
    Description    : add adc_gain TRANS_VALUE for dtsi */
     rc = of_property_read_u32(np, "bh1745,adc_gain", &tmp);
@@ -2000,6 +2119,7 @@ static int sensor_parse_dt(struct device *dev,
     pdata->TRANS_VALUE=tmp;
     SENSOR_LOG_INFO("read bh1745,TRANS_VALUE parameter from dtsi: %d\n",pdata->TRANS_VALUE);
 /* END:   Added by xuxiaohua, 2018/7/24 */
+#endif
 
 	rc = of_property_read_u32(np, "bh1745,tp_moudle_count", &tmp);
 	if (rc) {
@@ -2288,8 +2408,11 @@ static int rgb_bh1745_remove(struct i2c_client *client)
 	struct rgb_bh1745_platform_data *pdata = data->platform_data;
 /* Promblem Number: PR000     Author:xuxiaohua,   Date:2018/7/24
    Description    : add adc_gain TRANS_VALUE for dtsi */
-//	data->enable = ADC_GAIN_X16|RGBC_EN_OFF;
+#if defined(CONFIG_MACH_NUBIA_NX616J)
     data->enable = pdata->adc_gain||RGBC_EN_OFF;
+#else
+	data->enable = ADC_GAIN_X16|RGBC_EN_OFF;
+#endif
 /* END:   Added by xuxiaohua, 2018/7/26 */
 	rgb_bh1745_set_enable(client, data->enable);
 	remove_sysfs_interfaces(data->rgb_dev);

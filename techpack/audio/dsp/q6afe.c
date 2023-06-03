@@ -25,7 +25,7 @@
 #include <dsp/q6audio-v2.h>
 #include <ipc/apr_tal.h>
 #include "adsp_err.h"
-
+#include <dsp/msm-ultrasound.h>
 #ifdef CONFIG_SND_SOC_TFA9874_OR_HAPTIC
 #define AFE_MODULE_ID_TFADSP_RX		(0x1000B911)
 #define AFE_MODULE_ID_TFADSP_TX		(0x1000B912)
@@ -120,6 +120,7 @@ struct afe_ctl {
 	u16 dtmf_gen_rx_portid;
 	struct audio_cal_info_spk_prot_cfg	prot_cfg;
 	struct afe_spkr_prot_calib_get_resp	calib_data;
+	struct afe_ultrasound_calib_get_resp ultrasound_calib_data;
 	struct audio_cal_info_sp_th_vi_ftm_cfg	th_ftm_cfg;
 	struct audio_cal_info_sp_ex_vi_ftm_cfg	ex_ftm_cfg;
 	struct afe_sp_th_vi_get_param_resp	th_vi_resp;
@@ -402,16 +403,27 @@ static int32_t afe_callback(struct apr_client_data *data, void *priv)
 
 			return 0;
 		}
-#endif /*CONFIG_SND_SOC_TFA9874_OR_HAPTIC*/
-
+#else
+			if (rtac_make_afe_callback(data->payload,
+						   data->payload_size))
+				return 0;
+#endif
 			if (sp_make_afe_callback(data->payload,
 						 data->payload_size))
 				return -EINVAL;
 		}
+#ifdef CONFIG_SND_SOC_TFA9874_OR_HAPTIC
 		if (afe_token_is_valid(data->token))
 			wake_up(&this_afe.wait[data->token]);
+#else
+		wake_up(&this_afe.wait[data->token]);
+        } else if (data->opcode == ULTRASOUND_OPCODE) {
+           if (NULL != data->payload){
+               nubia_process_apr_payload(data->payload);
+              }
 		else
 			return -EINVAL;
+#endif
 	} else if (data->payload_size) {
 		uint32_t *payload;
 		uint16_t port_id = 0;
@@ -1182,6 +1194,15 @@ fail_cmd:
 	__func__, config.pdata.param_id, ret, src_port);
 	return ret;
 }
+
+afe_ultrasound_state_t ultra_afe = {
+    .ptr_apr = &this_afe.apr,
+    .ptr_status = &this_afe.status,
+    .ptr_state = &this_afe.state,
+    .ptr_wait = this_afe.wait,
+    .timeout_ms = TIMEOUT_MS,
+    .ptr_ultrasound_calib_data = &this_afe.ultrasound_calib_data
+};
 
 static void afe_send_cal_spkr_prot_tx(int port_id)
 {

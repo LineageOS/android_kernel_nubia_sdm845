@@ -559,6 +559,364 @@ int cam_sensor_match_id(struct cam_sensor_ctrl_t *s_ctrl)
 	return rc;
 }
 
+#if defined(CONFIG_MACH_NUBIA_NX606J)
+/*ZTEMT: fengxun add for OV8856 OTP--------Start*/
+int32_t OV8856_LSC_Calibration(struct camera_io_master io_master_info,
+unsigned char *lscbuf)
+{
+    int rc = 0;
+    int i = 0;
+    int sum = 0;
+    uint32_t readdata = 0;
+
+    struct cam_sensor_i2c_reg_setting write_setting;
+    struct cam_sensor_i2c_reg_array write_reg[]=
+    {
+        {0x00, 0x00, 0x00, 0x00},
+    };
+    struct cam_sensor_i2c_reg_array *write_regs;
+
+    //check sum
+    for (i = 0; i < 240; i++) {
+        sum += lscbuf[i];
+    }
+    if((sum%255 + 1) == lscbuf[240]){
+        CAM_DBG(CAM_SENSOR, "LSC check sum OK");
+    }else{
+        CAM_ERR(CAM_SENSOR, "LSC check sum error sum = %x but lscbuf[240] = %x",(sum%255 + 1), lscbuf[240]);
+    }
+
+    rc = camera_io_dev_read(&io_master_info, 0x5000,
+        &readdata, CAMERA_SENSOR_I2C_TYPE_WORD,
+        CAMERA_SENSOR_I2C_TYPE_BYTE);
+    if (rc < 0) 
+    {
+        CAM_ERR(CAM_SENSOR, "camera_io_dev_read error");
+        return -1;
+    }
+
+    write_reg[0].reg_addr = 0x5000;
+    write_reg[0].reg_data = readdata | 0x20;
+
+    write_setting.addr_type = CAMERA_SENSOR_I2C_TYPE_WORD;
+    write_setting.data_type = CAMERA_SENSOR_I2C_TYPE_BYTE;
+    write_setting.delay = 0;
+    write_setting.reg_setting = write_reg;
+    write_setting.size = 1;
+    rc = camera_io_dev_write(&io_master_info,&write_setting);
+    if (rc < 0)
+    {
+        CAM_ERR(CAM_SENSOR, "camera_io_dev_write error");
+        return -1;
+    }
+
+    write_regs = kzalloc(sizeof(struct cam_sensor_i2c_reg_array)*240, GFP_KERNEL);
+    if (!write_regs) {
+    	CAM_ERR(CAM_SENSOR, "Couldn't allocate memory");
+    	return -1;
+    }
+
+    write_regs[0].reg_addr = 0x5900;
+    for (i = 0; i < 240; i++) {
+        write_regs[i].reg_data = lscbuf[i];
+        write_regs[i].delay = 0;
+        write_regs[i].data_mask = 0;
+    }
+    write_setting.reg_setting = write_regs;
+    write_setting.size = 240;
+    rc = cam_cci_i2c_write_continuous_table(&io_master_info,&write_setting,0);
+
+    if (rc < 0) {
+        CAM_ERR(CAM_SENSOR, "cam_cci_i2c_write_continuous_table error");
+        kfree(write_regs);
+        return -1;
+    }
+
+    kfree(write_regs);
+    CAM_ERR(CAM_SENSOR, "LSC calibration successful");
+    return rc;
+}
+int32_t OV8856_AWB_Calibration(struct camera_io_master io_master_info,
+unsigned char *awbbuf)
+{
+    int rc = 0;
+    struct cam_sensor_i2c_reg_setting write_setting;
+    struct cam_sensor_i2c_reg_array write_reg[]=
+    {
+        {0x00, 0x00, 0x00, 0x00},
+        {0x00, 0x00, 0x00, 0x00},
+    };
+    //AWB
+    static int  RG_Ration_Typical = 284;
+    static int  BG_Ration_Typical = 338;
+    int rg_ratio = 0;
+    int bg_ratio = 0;
+    int R_gain = 0;
+    int B_gain = 0;
+    int G_gain = 0;
+    int Base_gain = 0;
+
+    //AWB Calibration
+    rg_ratio = (awbbuf[5]<<2) + ((awbbuf[7]>>6) & 0x03);
+    bg_ratio = (awbbuf[6]<<2) + ((awbbuf[7]>>4) & 0x03);
+    CAM_DBG(CAM_SENSOR, "awbbuf =0x%x 0x%x 0x%x",awbbuf[5],awbbuf[6],awbbuf[7]);
+    CAM_DBG(CAM_SENSOR, "rg_ratio =0x%x,bg_ratio =0x%x",rg_ratio,bg_ratio);
+    R_gain = (RG_Ration_Typical*1000)/rg_ratio;
+    B_gain = (BG_Ration_Typical*1000)/bg_ratio;
+    G_gain = 1000;
+
+    if(R_gain < 1000 || B_gain < 1000)
+    {
+        if(R_gain < B_gain)
+        {
+            Base_gain = R_gain;
+        }
+        else
+        {
+            Base_gain = B_gain;
+        }
+    }
+    else
+    {
+        Base_gain = G_gain;
+    }
+    R_gain = 0x400 * R_gain / Base_gain;
+    B_gain = 0x400 * B_gain / Base_gain;
+    G_gain = 0x400 * G_gain / Base_gain;
+    CAM_DBG(CAM_SENSOR, "R_gain : %d" , R_gain);
+    CAM_DBG(CAM_SENSOR, "B_gain: %d" , B_gain);
+    CAM_DBG(CAM_SENSOR, "G_gain: %d" , G_gain);
+
+    write_setting.addr_type = CAMERA_SENSOR_I2C_TYPE_WORD;
+    write_setting.data_type = CAMERA_SENSOR_I2C_TYPE_BYTE;
+    write_setting.delay = 0;
+    write_setting.reg_setting = write_reg;
+    write_setting.size = 2;
+
+    if(R_gain > 0x400){
+        write_reg[0].reg_addr = 0x5019;
+        write_reg[0].reg_data = R_gain >> 8;
+        write_reg[1].reg_addr = 0x501A;
+        write_reg[1].reg_data = R_gain & 0xff;
+        rc = camera_io_dev_write(&io_master_info,&write_setting);
+        if (rc < 0)
+        {
+            CAM_ERR(CAM_SENSOR, "camera_io_dev_write error");
+            return -1;
+        }
+    }
+    if(G_gain > 0x400){
+        write_reg[0].reg_addr = 0x501b;
+        write_reg[0].reg_data = G_gain >> 8;
+        write_reg[1].reg_addr = 0x501c;
+        write_reg[1].reg_data = G_gain & 0xff;
+        rc = camera_io_dev_write(&io_master_info,&write_setting);
+        if (rc < 0)
+        {
+            CAM_ERR(CAM_SENSOR, "camera_io_dev_write error");
+            return -1;
+        }
+    }
+    if(B_gain > 0x400){
+        write_reg[0].reg_addr = 0x501d;
+        write_reg[0].reg_data = B_gain >> 8;
+        write_reg[1].reg_addr = 0x501e;
+        write_reg[1].reg_data = B_gain & 0xff;
+        rc = camera_io_dev_write(&io_master_info,&write_setting);
+        if (rc < 0)
+        {
+            CAM_ERR(CAM_SENSOR, "camera_io_dev_write error");
+            return -1;
+        }
+    }
+    CAM_ERR(CAM_SENSOR, "AWB calibration successful");
+    return rc;
+}
+int32_t OV8856_OTP_Calibration(struct camera_io_master io_master_info)
+{
+    int rc = 0;
+    uint32_t readdata = 0;
+    unsigned char awbbuf[8] = {0};
+    unsigned char lscbuf[241] = {0};
+    int i = 0;
+    uint32_t addr = 0;
+
+    struct cam_sensor_i2c_reg_setting write_setting;
+    struct cam_sensor_i2c_reg_array ov8856_otp_init_reg[]=
+    {
+        {0x5001, 0x00, 0x00, 0x00},
+        {0x3d84, 0xc0, 0x00, 0x00},
+        {0x3d88, 0x70, 0x00, 0x00},
+        {0x3d89, 0x10, 0x00, 0x00},
+        {0x3d8A, 0x72, 0x00, 0x00},
+        {0x3d8B, 0x0A, 0x00, 0x00},
+        {0x3d81, 0x01, 0x00, 0x00},
+    };
+
+    struct cam_sensor_i2c_reg_array ov8856_otp_deinit_reg[]=
+    {
+        {0x5001, 0x00, 0x00, 0x00},
+    };
+
+    struct cam_sensor_i2c_reg_array *ov8856_otp_clear_buf;
+
+    CAM_ERR(CAM_SENSOR, "OV8856_OTP_Calibration ---E");
+
+    rc = camera_io_dev_read(&io_master_info, 0x5001,
+        &readdata, CAMERA_SENSOR_I2C_TYPE_WORD,
+        CAMERA_SENSOR_I2C_TYPE_BYTE);
+    if (rc < 0) 
+    {
+        CAM_ERR(CAM_SENSOR, "camera_io_dev_read error");
+        return -1;
+    }
+
+    ov8856_otp_init_reg[0].reg_data = readdata & (~0x08);
+    CAM_DBG(CAM_SENSOR, "read data =%x ,5001 = %0x",readdata,ov8856_otp_init_reg[0].reg_data);
+
+    write_setting.addr_type = CAMERA_SENSOR_I2C_TYPE_WORD;
+    write_setting.data_type = CAMERA_SENSOR_I2C_TYPE_BYTE;
+    write_setting.delay = 0;
+    write_setting.reg_setting = ov8856_otp_init_reg;
+    write_setting.size = 7;
+    rc = camera_io_dev_write(&io_master_info,&write_setting);
+    if (rc < 0)
+    {
+        CAM_ERR(CAM_SENSOR, "camera_io_dev_write error");
+        return -1;
+    }
+
+    msleep(10);
+
+    //read info&awb data
+    rc = camera_io_dev_read(&io_master_info, 0x7010,
+        &readdata, CAMERA_SENSOR_I2C_TYPE_WORD,
+        CAMERA_SENSOR_I2C_TYPE_BYTE);
+    if (rc < 0) 
+    {
+        CAM_ERR(CAM_SENSOR, "camera_io_dev_read error");
+        return -1;
+    }
+
+    if((readdata & 0xC0) == 0x40){
+        addr = 0x7011;//group1
+        CAM_DBG(CAM_SENSOR, "OTP data awb use group1");
+    }else if((readdata & 0x30) == 0x10){
+        addr = 0x7019;//group2
+        CAM_DBG(CAM_SENSOR, "OTP data awb use group2");
+    }else{
+        CAM_ERR(CAM_SENSOR, "error OTP data is invalid");
+        return -1;
+    }
+
+    rc = camera_io_dev_read_seq(&io_master_info,addr,awbbuf,
+        CAMERA_SENSOR_I2C_TYPE_WORD, 8);
+    if (rc < 0) 
+    {
+        CAM_ERR(CAM_SENSOR, "camera_io_dev_read_seq error");
+        return -1;
+    }
+
+    for(i = 0;i < 8;i++){
+        //for debug
+        CAM_DBG(CAM_SENSOR, "AWBbuf[%x]=%x ",i,awbbuf[i]);
+    }
+
+    //read LSCdata
+    rc = camera_io_dev_read(&io_master_info, 0x7028,
+        &readdata, CAMERA_SENSOR_I2C_TYPE_WORD,
+        CAMERA_SENSOR_I2C_TYPE_BYTE);
+    if (rc < 0) 
+    {
+        CAM_ERR(CAM_SENSOR, "camera_io_dev_read error");
+        return -1;
+    }
+
+    if((readdata & 0xC0) == 0x40){
+        addr = 0x7029;//group1
+        CAM_DBG(CAM_SENSOR, "OTP data LSC use group1");
+    }else if((readdata & 0x30) == 0x10){
+        addr = 0x711A;//group2
+        CAM_DBG(CAM_SENSOR, "OTP data LSC use group2");
+    }else{
+        CAM_ERR(CAM_SENSOR, "error OTP data is invalid");
+        return -1;
+    }
+
+    rc = camera_io_dev_read_seq(&io_master_info,addr,lscbuf,
+        CAMERA_SENSOR_I2C_TYPE_WORD, 241);
+    if (rc < 0) 
+    {
+        CAM_ERR(CAM_SENSOR, "camera_io_dev_read_seq error");
+        return -1;
+    }
+
+    for(i = 0;i < 241;i++){
+        //for debug
+        CAM_DBG(CAM_SENSOR, "LSCbuf[%x]=%x ",i,lscbuf[i]);
+    }
+    //read successful
+
+    //clear buf
+    #if 1
+    ov8856_otp_clear_buf = kzalloc(sizeof(struct cam_sensor_i2c_reg_array)*507, GFP_KERNEL);
+    if (!ov8856_otp_clear_buf) {
+    	CAM_ERR(CAM_SENSOR, "Couldn't allocate memory");
+    	return -1;
+    }
+    ov8856_otp_clear_buf[0].reg_addr = 0x7010;
+    write_setting.addr_type = CAMERA_SENSOR_I2C_TYPE_WORD;
+    write_setting.data_type = CAMERA_SENSOR_I2C_TYPE_BYTE;
+    write_setting.delay = 0;
+    write_setting.reg_setting = ov8856_otp_clear_buf;
+    write_setting.size = 507;
+
+    rc = cam_cci_i2c_write_continuous_table(&io_master_info,&write_setting,0);
+    if (rc < 0) {
+        CAM_ERR(CAM_SENSOR, "cam_cci_i2c_write_continuous_table error");
+        kfree(ov8856_otp_clear_buf);
+        return -1;
+    }
+
+    kfree(ov8856_otp_clear_buf);
+    #endif
+
+    //set 0x5001[3] to "1"
+    rc = camera_io_dev_read(&io_master_info, 0x5001,
+        &readdata, CAMERA_SENSOR_I2C_TYPE_WORD,
+        CAMERA_SENSOR_I2C_TYPE_BYTE);
+    if (rc < 0) 
+    {
+        CAM_ERR(CAM_SENSOR, "camera_io_dev_read error");
+        return -1;
+    }
+    ov8856_otp_deinit_reg[0].reg_data = readdata | 0x08;
+    CAM_DBG(CAM_SENSOR, "read data =%x ,5001 = %0x",readdata,ov8856_otp_deinit_reg[0].reg_data);
+
+    write_setting.addr_type = CAMERA_SENSOR_I2C_TYPE_WORD;
+    write_setting.data_type = CAMERA_SENSOR_I2C_TYPE_BYTE;
+    write_setting.delay = 0;
+    write_setting.reg_setting = ov8856_otp_deinit_reg;
+    write_setting.size = 1;
+    rc = camera_io_dev_write(&io_master_info,&write_setting);
+    if (rc < 0)
+    {
+        CAM_ERR(CAM_SENSOR, "camera_io_dev_write error");
+        return -1;
+    }
+
+    //AWB Calibration
+    OV8856_AWB_Calibration(io_master_info,awbbuf);
+
+    //LSC Calibration
+    OV8856_LSC_Calibration(io_master_info,lscbuf);
+
+    CAM_ERR(CAM_SENSOR, "OV8856_OTP_Calibration ---X");
+    return rc;
+}
+/*ZTEMT: fengxun add for OV8856 OTP--------End*/
+#endif
+
 int32_t cam_sensor_driver_cmd(struct cam_sensor_ctrl_t *s_ctrl,
 	void *arg)
 {
@@ -802,6 +1160,15 @@ int32_t cam_sensor_driver_cmd(struct cam_sensor_ctrl_t *s_ctrl,
 					"cannot apply streamon settings");
 				goto release_mutex;
 			}
+#if defined(CONFIG_MACH_NUBIA_NX606J)
+                    /*ZTEMT: fengxun add for OV8856 OTP--------Start*/
+                    //OV8856 slave addr = 0x6c   0x6C>>1 = 0x36
+                    if((NULL != s_ctrl->io_master_info.cci_client) && 
+                        (0x36 == s_ctrl->io_master_info.cci_client->sid)){
+                        OV8856_OTP_Calibration(s_ctrl->io_master_info);
+                    }
+                    /*ZTEMT: fengxun add for OV8856 OTP--------End*/
+#endif
 		}
 		s_ctrl->sensor_state = CAM_SENSOR_START;
 		CAM_INFO(CAM_SENSOR,

@@ -50,6 +50,13 @@ config NUBIA_SENSORS_OPTICAL_KEY_RIGHT
 	help
 		nubia device of optical key right
 ################################################# VIRTUAL_PROXIMITY
+config NUBIA_SENSORS_VIRTUAL_PROXIMITY
+	tristate "support virtual proximity driver"
+	depends on NUBIA_SENSORS
+	default n
+	help
+		nubia device of virtual proximity
+
 config NUBIA_VIRTUAL_PROXIMITY
 	tristate "support virtual proximity driver"
 	depends on NUBIA_SENSORS

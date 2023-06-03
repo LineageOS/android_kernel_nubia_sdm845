@@ -1549,6 +1549,9 @@ static int qpnp_wled_auto_calibrate_at_init(struct qpnp_wled *wled)
 }
 
 /* ovp irq handler */
+#ifdef CONFIG_NUBIA_WLED_OVP_FILTER
+static int wled_ovp_flag = 0;
+#endif
 static irqreturn_t qpnp_wled_ovp_irq_handler(int irq, void *_wled)
 {
 	struct qpnp_wled *wled = _wled;
@@ -1570,8 +1573,20 @@ static irqreturn_t qpnp_wled_ovp_irq_handler(int irq, void *_wled)
 	}
 
 	if (fault_sts & (QPNP_WLED_OVP_FAULT_BIT | QPNP_WLED_ILIM_FAULT_BIT))
+#ifdef CONFIG_NUBIA_WLED_OVP_FILTER
+	{
+		wled_ovp_flag++;
+		wled_ovp_flag = 0;//add for del log
+		if(wled_ovp_flag > 300)
+		{
+			wled_ovp_flag = 0;
+#endif
 		pr_err("WLED OVP fault detected, int_sts=%x fault_sts= %x\n",
 			int_sts, fault_sts);
+#ifdef CONFIG_NUBIA_WLED_OVP_FILTER
+		}
+	}
+#endif
 
 	if (fault_sts & QPNP_WLED_OVP_FAULT_BIT) {
 		if (wled->auto_calib_enabled && !wled->auto_calib_done) {
@@ -2753,6 +2768,13 @@ static int qpnp_wled_probe(struct platform_device *pdev)
 
 	mutex_init(&wled->bus_lock);
 	mutex_init(&wled->lock);
+#ifdef CONFIG_NUBIA_WLED_OVP_FILTER
+	if(strstr(saved_command_line,"dsi_nt35597_truly_dsc_video_display")!=NULL){
+		qpnp_wled_module_en(wled, wled->ctrl_base, false);
+		pr_err("defult (no) lcd find no wled\n");
+		return -ENODEV;
+	}
+#endif
 	rc = qpnp_wled_config(wled);
 	if (rc) {
 		dev_err(&pdev->dev, "wled config failed\n");
