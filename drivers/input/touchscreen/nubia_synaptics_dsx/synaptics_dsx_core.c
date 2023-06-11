@@ -1050,7 +1050,7 @@ static ssize_t synaptics_rmi4_wake_gesture_show(struct device *dev,
 			rmi4_data->enable_wakeup_gesture);
 }
 
-#ifdef CONFIG_NUBIA_LCD_KEEP_POWER_ON
+#ifdef CONFIG_NUBIA_LCD_KEEP
 //nubia for wakeup gesture
 extern int nubia_wakeup_gesture;
 #else
