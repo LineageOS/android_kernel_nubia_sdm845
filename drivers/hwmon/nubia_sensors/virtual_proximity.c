@@ -128,13 +128,13 @@ static ssize_t virtual_proximity_store_value(struct device *dev,
         near_count = 0;
     }
     SENSOR_LOG_INFO("ultrasonic value = %d, near_count=%d, far_count=%d\n", value, near_count, far_count);
-    if(near_count == 3)
+    if(near_count == 2)
     {
         near_count = 0;
         data->ps_status = 3;
         virtual_proximity_report_event(data);
     }
-    if(far_count == 4)
+    if(far_count == 2)
     {
         far_count = 0;
         data->ps_status = 10;
