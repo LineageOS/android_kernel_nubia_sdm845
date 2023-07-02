@@ -64,3 +64,6 @@ obj-$(CONFIG_KEYBOARD_TEGRA)		+= tegra-kbc.o
 obj-$(CONFIG_KEYBOARD_TWL4030)		+= twl4030_keypad.o
 obj-$(CONFIG_KEYBOARD_XTKBD)		+= xtkbd.o
 obj-$(CONFIG_KEYBOARD_W90P910)		+= w90p910_keypad.o
+obj-$(CONFIG_NUBIA_CYPRESS_KEYBOARD_GAMEFIRE)		+= cy8c4014l_touchkey_firmware_update.o
+obj-$(CONFIG_NUBIA_CYPRESS_KEYBOARD_GAMEFIRE)		+= cybtldr_touchkey_command.o
+obj-$(CONFIG_NUBIA_CYPRESS_KEYBOARD_GAMEFIRE)		+= cy8c4014l_touchkey.o

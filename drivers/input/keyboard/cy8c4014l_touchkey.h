@@ -26,9 +26,6 @@
 #define CYPRESS4000_KEY1_CP2                0x14
 #define CYPRESS4000_KEY1_CP3                0x15
 
-#define CYPRESS4000_TOUCHKEY_PROJECT        0x16
-#define CYPRESS4000_TOUCHKEY_LSENSITIVITY   0x18
-#define CYPRESS4000_TOUCHKEY_RSENSITIVITY   0x17
 
 #define CYPRESS4000_WAKEUP_MODE             0x5a
 #define CYPRESS4000_SLEEP_MODE              0xa5
@@ -36,8 +33,8 @@
 /* Cy8c4044lqi-421 input key code */
 #define CYPRESS_KEY_LEFT                    KEY_GAMEFIRE_LEFT
 #define CYPRESS_KEY_RIGHT                   KEY_GAMEFIRE_RIGHT
-#define CYPRESS_LEFT_BIT                    0x1
-#define CYPRESS_RIGHT_BIT                   0x2
+#define CYPRESS_LEFT_BIT                    0x2
+#define CYPRESS_RIGHT_BIT                   0x1
 
 #define CYPRESS_BUFF_LENGTH                 1024
 
@@ -45,22 +42,14 @@ struct cypress_platform_data{
     struct input_dev *input_dev;
     int irq_gpio;
     int irq_flag;
-    int power_gpio;
-    int power_on_flag;
-    struct regulator *avdd_ldo;
     int rst_gpio;
 };
 struct cypress_info {
     struct i2c_client *i2c;
     struct device *dev_t;
     struct cypress_platform_data *platform_data;
-    struct delayed_work cypress_update_work;
-    struct workqueue_struct *cypress_update_wq;
+    struct delayed_work cypress_work;
     int irq;
-	int new_mode;
-	bool bUpdateOver;
-	bool bLeftDown;
-	bool bRightDown;
 };
 
 #endif

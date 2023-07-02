@@ -10,7 +10,7 @@
  */
 
 #include <linux/i2c.h>
-//#include <linux/i2c/mcs.h>
+#include <linux/i2c/mcs.h>
 #include <linux/string.h>
 #include <linux/delay.h>
 #include "cybtldr_touchkey_command.h"
@@ -142,8 +142,6 @@ int CyBtldr_StartBootloadOperation(unsigned long expSiId, unsigned char expSiRev
         g_validRows[i] = NO_FLASH_ARRAY_DATA;
 
     err = CyBtldr_CreateEnterBootLoaderCmd(inBuf, &inSize, &outSize);
-    dev_err(&cypress_client->dev, " buf: %p, inSize:%d, outSize: %d, MAX_COMMAND_SIZE: %d\n", inBuf, inSize, outSize, MAX_COMMAND_SIZE);
-
     if (CYRET_SUCCESS == err)
        err = CyBtldr_TransferData(inBuf, inSize, outBuf, outSize);
 	else
@@ -261,7 +259,7 @@ int CyBtldr_ProgramRow(unsigned char arrayID, unsigned short rowNum, unsigned ch
     unsigned long offset = 0;
     unsigned short subBufSize;
     unsigned char status = CYRET_SUCCESS;
-    unsigned int MaxTransferSize = 32u;
+	unsigned int MaxTransferSize = 64u;
 
 
     int err = CyBtldr_ValidateRow(arrayID, rowNum);
@@ -367,8 +365,7 @@ int cypress_firmware_update(struct i2c_client *client,const char *bootloadImageP
   val = i2c_smbus_write_byte_data(client, CYPRESS4000_TOUCHKEY_ENTER_BOOTLOADER_MODE, CYPRESS4000_TOUCHKEY_ENTER_BOOTLOADER_COMMON_VALUE);
   if (val < 0)
   {
-	dev_err(&client->dev, "cypress write enter bootloader cmm error [%d],but it may be in bootloader mode already, so keep updating fw", val);
-//    return val;
+    dev_err(&client->dev, "cypress write enter bootloader cmm error(%d),but it may be in bootloader mode already, so keep updating fw\n", val);
   }
   client->addr = CYPRESS_BOOTLOADER_MODE_I2C_ADDR;
 
