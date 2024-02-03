@@ -94,9 +94,6 @@
 &dsi_nt35597_truly_dsc_cmd_display {
 	/delete-property/ qcom,dsi-display-active;
 };
-&dsi_jdi_td4310_1080_2160_5p99_video_display {
-	/delete-property/ qcom,dsi-display-active;
-};
 
 &pmi8998_wled {
        qcom,fs-curr-ua = <17500>;
