@@ -47,6 +47,10 @@
 #include <linux/input/mt.h>
 #endif
 
+#ifdef CONFIG_TOUCHSCREEN_COMMON_DT2W_NODE
+#include <linux/input/tp_common.h>
+#endif
+
 #ifdef NUBIA_TOUCH_SYNAPTICS
 #include <linux/pinctrl/consumer.h>
 #endif
@@ -755,6 +759,32 @@ static struct kobj_attribute virtual_key_map_attr = {
 	},
 	.show = synaptics_rmi4_virtual_key_map_show,
 };
+
+#ifdef CONFIG_TOUCHSCREEN_COMMON_DT2W_NODE
+static ssize_t double_tap_show(struct kobject *kobj,
+			       struct kobj_attribute *attr, char *buf)
+{
+	if (!g_rmi4_data)
+		return -EIO;
+	return synaptics_rmi4_wake_gesture_show(&g_rmi4_data->input_dev->dev,
+						NULL, buf);
+}
+
+static ssize_t double_tap_store(struct kobject *kobj,
+				struct kobj_attribute *attr, const char *buf,
+				size_t count)
+{
+	if (!g_rmi4_data)
+		return -EIO;
+	return synaptics_rmi4_wake_gesture_store(&g_rmi4_data->input_dev->dev,
+						 NULL, buf, count);
+}
+
+static struct tp_common_ops double_tap_ops = {
+	.show = double_tap_show,
+	.store = double_tap_store
+};
+#endif
 
 static ssize_t synaptics_rmi4_f01_reset_store(struct device *dev,
 		struct device_attribute *attr, const char *buf, size_t count)
@@ -4420,6 +4450,15 @@ static int synaptics_rmi4_probe(struct platform_device *pdev)
 				__func__);
 		goto err_set_input_dev;
 	}
+
+#ifdef CONFIG_TOUCHSCREEN_COMMON_DT2W_NODE
+	retval = tp_common_set_double_tap_ops(&double_tap_ops);
+	if (retval < 0) {
+		dev_err(&pdev->dev,
+				"%s: Failed to create double_tap node err=%d\n",
+				__func__, retval);
+	}
+#endif
 
 #ifdef CONFIG_FB
 	rmi4_data->fb_notifier.notifier_call = synaptics_rmi4_fb_notifier_cb;
