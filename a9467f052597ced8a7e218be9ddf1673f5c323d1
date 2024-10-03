@@ -34,6 +34,24 @@
       "parentUuid": "8fcb93c3_3387264d",
       "revId": "a9467f052597ced8a7e218be9ddf1673f5c323d1",
       "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
+    },
+    {
+      "unresolved": false,
+      "key": {
+        "uuid": "89b66817_d72487ae",
+        "filename": "/PATCHSET_LEVEL",
+        "patchSetId": 1
+      },
+      "lineNbr": 0,
+      "author": {
+        "id": 16185
+      },
+      "writtenOn": "2024-10-03T15:13:54Z",
+      "side": 1,
+      "message": "this is actually valid - play integrity checks this directly now.",
+      "parentUuid": "f88e9296_a4a19303",
+      "revId": "a9467f052597ced8a7e218be9ddf1673f5c323d1",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
     }
   ]
 }
